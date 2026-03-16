@@ -1,8 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
+import { supabase } from "./supabase";
 
 // ═══════════════════════ 상수 ═══════════════════════
-const STORAGE_KEY = "hp_projects"; // ← 버전과 무관한 고정 키
-const LEGACY_KEYS = ["hp_v9", "hp_v8"]; // 이전 버전 마이그레이션용
 
 const CLIMATE = [
   { id:"north",  label:"북부/한랭지", desc:"강원 내륙·철원 (설계외기 -15℃)", heatW:350, tapTemp:5 },
@@ -155,29 +154,32 @@ export default function App(){
   const[nightRate,setNightRate]=useState("56");
   const[instCost,setInstCost]=useState("");
 
-  // ─── 스토리지: 고정 키 + 레거시 마이그레이션 ───
+  // ─── Supabase 연동: 팀 공유 스토리지 ───
   useEffect(()=>{
     (async()=>{
-      // 1. 현재 키 시도
-      try{ const r=await window.storage.get(STORAGE_KEY); if(r){ setProjects(JSON.parse(r.value)); return; } }catch{}
-      // 2. 이전 버전 키에서 마이그레이션
-      for(const legacy of LEGACY_KEYS){
-        try{
-          const r=await window.storage.get(legacy);
-          if(r){
-            const data=JSON.parse(r.value);
-            setProjects(data);
-            await window.storage.set(STORAGE_KEY, JSON.stringify(data));
-            return;
-          }
-        }catch{}
-      }
+      try{
+        const{data,error}=await supabase.from("projects").select("*").order("updated_at",{ascending:false});
+        if(!error&&data) setProjects(data.map(r=>({...r.data,id:r.id})));
+      }catch{}
     })();
   },[]);
 
   const persist=async arr=>{
     setProjects(arr);
-    try{ await window.storage.set(STORAGE_KEY, JSON.stringify(arr)); }catch{}
+    // Supabase에 각 프로젝트를 upsert
+    for(const p of arr){
+      const{id,...rest}=p;
+      try{await supabase.from("projects").upsert({id,data:p,updated_at:new Date().toISOString()});}catch{}
+    }
+    // 삭제된 항목 제거
+    try{
+      const{data:rows}=await supabase.from("projects").select("id");
+      if(rows){
+        const activeIds=new Set(arr.map(p=>p.id));
+        const toDelete=rows.filter(r=>!activeIds.has(r.id)).map(r=>r.id);
+        for(const did of toDelete){await supabase.from("projects").delete().eq("id",did);}
+      }
+    }catch{}
   };
 
   // ─── 파생 ───
