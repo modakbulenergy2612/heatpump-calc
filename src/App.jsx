@@ -24,6 +24,7 @@ const HP_MODELS = [
   { id:"s25", kw:25, label:"구분형 25kW", type:"구분형", maxTemp:80 },
   { id:"s35", kw:35, label:"구분형 35kW", type:"구분형", maxTemp:80 },
 ];
+const MEMBERS = ["군산","그린","자비스","데미안","동하","엠마"];
 const WSRC = [
   { id:"tap",    label:"상수도", getT: c => c.tapTemp },
   { id:"ground", label:"지하수", getT: () => 16 },
@@ -104,6 +105,9 @@ const mkTub  = () => ({ id:Date.now()+"_"+Math.random().toString(36).slice(2,5),
 export default function App(){
   const[dark,setDark]=useState(false);
   const[tab,setTab]=useState("status");
+  const[loading,setLoading]=useState(true);
+  const[myName,setMyName]=useState(()=>localStorage.getItem("hp_myname")||"");
+  const[showNameModal,setShowNameModal]=useState(false);
 
   const C=dark?{bg:"#0F172A",card:"#1E293B",bd:"#334155",txt:"#F1F5F9",sub:"#94A3B8",pri:"#60A5FA",acc:"#3B82F6",res:"#34D399",warn:"#FBBF24",err:"#F87171",inp:"#0F172A",inpB:"#475569",hi:"#1E3A5F"}
               :{bg:"#F0F4F8",card:"#FFFFFF",bd:"#E2E8F0",txt:"#1A202C",sub:"#718096",pri:"#1B3A5C",acc:"#2563EB",res:"#059669",warn:"#D97706",err:"#DC2626",inp:"#F7FAFC",inpB:"#CBD5E0",hi:"#EFF6FF"};
@@ -155,21 +159,33 @@ export default function App(){
   const[instCost,setInstCost]=useState("");
 
   // ─── Supabase 연동: 팀 공유 스토리지 ───
+  const fetchProjects=async()=>{
+    try{
+      const{data,error}=await supabase.from("projects").select("*").order("updated_at",{ascending:false});
+      if(!error&&data) setProjects(data.map(r=>({...r.data,id:r.id})));
+    }catch{}
+  };
+
   useEffect(()=>{
     (async()=>{
-      try{
-        const{data,error}=await supabase.from("projects").select("*").order("updated_at",{ascending:false});
-        if(!error&&data) setProjects(data.map(r=>({...r.data,id:r.id})));
-      }catch{}
+      await fetchProjects();
+      setLoading(false);
+      // 첫 방문 시 이름 입력 모달
+      if(!localStorage.getItem("hp_myname")) setShowNameModal(true);
     })();
+    // 30초마다 자동 새로고침 (다른 팀원 변경사항 반영)
+    const iv=setInterval(fetchProjects,30000);
+    return()=>clearInterval(iv);
   },[]);
 
   const persist=async arr=>{
     setProjects(arr);
+    const editor=myName||"(미지정)";
     // Supabase에 각 프로젝트를 upsert
     for(const p of arr){
       const{id,...rest}=p;
-      try{await supabase.from("projects").upsert({id,data:p,updated_at:new Date().toISOString()});}catch{}
+      const pWithEditor={...p,lastEditor:editor};
+      try{await supabase.from("projects").upsert({id,data:pWithEditor,updated_at:new Date().toISOString()});}catch{}
     }
     // 삭제된 항목 제거
     try{
@@ -558,12 +574,12 @@ export default function App(){
   const HDR ={background:C.pri,color:"#fff",padding:"13px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 8px rgba(0,0,0,.25)"};
   const TABS={display:"flex",background:C.card,borderBottom:`1px solid ${C.bd}`,padding:"0 14px",gap:2,overflowX:"auto"};
   const tb  =a=>({padding:"11px 16px",fontSize:13.5,fontWeight:a?700:500,color:a?C.acc:C.sub,background:"none",border:"none",borderBottom:a?`2.5px solid ${C.acc}`:`2.5px solid transparent`,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"});
-  const CONT={maxWidth:760,margin:"0 auto",padding:"14px 12px"};
+  const CONT={maxWidth:760,margin:"0 auto",padding:"14px 12px",width:"100%",boxSizing:"border-box"};
   const SEC ={background:C.card,borderRadius:10,padding:"16px 18px",marginBottom:12,border:`1px solid ${C.bd}`};
   const SECH={fontSize:14.5,fontWeight:700,color:C.pri,marginBottom:14,display:"flex",alignItems:"center",gap:6};
   const ROW ={display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"};
   const LBL ={fontSize:13,color:C.sub,minWidth:112,flexShrink:0};
-  const IST ={background:C.inp,border:`1px solid ${C.inpB}`,borderRadius:6,padding:"7px 10px",fontSize:13,color:C.txt,outline:"none",fontFamily:"inherit"};
+  const IST ={background:C.inp,border:`1px solid ${C.inpB}`,borderRadius:6,padding:"8px 10px",fontSize:14,color:C.txt,outline:"none",fontFamily:"inherit",minHeight:36};
   const INP ={...IST,width:90};
   const SEL ={...IST,cursor:"pointer",width:160};
   const BTN ={border:"none",borderRadius:6,cursor:"pointer",fontFamily:"inherit",fontWeight:600,fontSize:13,transition:"all .15s"};
@@ -586,15 +602,39 @@ export default function App(){
         hpR,recM,recN,isCDominated,tankOversized,summary,
         monthlyElec,elecCost,curCost,savings,payback,nR}=R;
 
+  // ─── 이름 저장 ───
+  const saveName=(n)=>{setMyName(n);localStorage.setItem("hp_myname",n);setShowNameModal(false);};
+
   return(
   <div style={W}>
+    {/* 이름 입력 모달 */}
+    {showNameModal&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:C.card,borderRadius:14,padding:"28px 24px",maxWidth:360,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,.3)"}}>
+        <div style={{fontSize:16,fontWeight:700,color:C.pri,marginBottom:6}}>👋 본인을 선택해주세요</div>
+        <div style={{fontSize:13,color:C.sub,marginBottom:16}}>팀원들이 누가 수정했는지 확인할 수 있습니다.</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {MEMBERS.map(m=>(
+            <button key={m} onClick={()=>saveName(m)} style={{...BTN,padding:"12px 16px",fontSize:15,background:myName===m?C.acc:"transparent",color:myName===m?"#fff":C.txt,border:`2px solid ${myName===m?C.acc:C.bd}`,borderRadius:8,textAlign:"left"}}>{m}</button>
+          ))}
+        </div>
+      </div>
+    </div>}
+
     <div style={HDR}>
       <div><div style={{fontSize:16,fontWeight:700}}>🌡️ HP 용량 산정 시스템 v10</div><div style={{fontSize:11,opacity:.75}}>히트펌프 · 축열조 산정 & 프로젝트 관리</div></div>
-      <button onClick={()=>setDark(!dark)} style={{...BTN,background:"rgba(255,255,255,.18)",color:"#fff",padding:"6px 13px"}}>{dark?"☀️ 라이트":"🌙 다크"}</button>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <span onClick={()=>setShowNameModal(true)} style={{fontSize:12,color:"rgba(255,255,255,.8)",cursor:"pointer",padding:"4px 8px",borderRadius:4,background:"rgba(255,255,255,.12)"}}>{myName||"이름 설정"}</span>
+        <button onClick={()=>setDark(!dark)} style={{...BTN,background:"rgba(255,255,255,.18)",color:"#fff",padding:"6px 13px"}}>{dark?"☀️ 라이트":"🌙 다크"}</button>
+      </div>
     </div>
     <div style={TABS}>
       {[["status","📊 프로젝트 현황"],["calc","📐 용량 산정"],["econ","💰 경제성 분석"]].map(([id,lbl])=>(
-        <button key={id} style={tb(tab===id)} onClick={()=>setTab(id)}>{lbl}</button>
+        <button key={id} style={tb(tab===id)} onClick={()=>{
+          if((tab==="calc"||tab==="econ")&&id==="status"&&activePid){
+            if(!window.confirm("현재 탭을 나가시겠습니까?\n저장하지 않은 변경사항은 사라집니다."))return;
+          }
+          setTab(id);
+        }}>{lbl}</button>
       ))}
     </div>
     <div style={CONT}>
@@ -603,7 +643,7 @@ export default function App(){
     {tab==="status"&&(<>
       <div style={SEC}>
         <div style={SECH}>{spEditId?"✏️ 프로젝트 수정":"➕ 새 프로젝트 추가"}</div>
-        <div style={ROW}><span style={LBL}>프로젝트명 *</span><input value={spForm.name} onChange={e=>setSpForm({...spForm,name:e.target.value})} placeholder="예) 파주 백학 리조트" style={{...IST,width:210}}/><span style={LBL}>담당자</span><input value={spForm.manager} onChange={e=>setSpForm({...spForm,manager:e.target.value})} placeholder="홍길동" style={{...IST,width:100}}/></div>
+        <div style={ROW}><span style={LBL}>프로젝트명 *</span><input value={spForm.name} onChange={e=>setSpForm({...spForm,name:e.target.value})} placeholder="예) 파주 백학 리조트" style={{...IST,width:210}}/><span style={LBL}>담당자</span><select value={spForm.manager} onChange={e=>setSpForm({...spForm,manager:e.target.value})} style={{...SEL,width:110}}><option value="">선택</option>{MEMBERS.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
         <div style={ROW}><span style={LBL}>진행상황 *</span><div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{STATUS_LIST.map(s=>(<button key={s.id} onClick={()=>setSpForm({...spForm,status:s.id})} style={{...BTN,padding:"5px 11px",fontSize:12,background:spForm.status===s.id?s.color:"transparent",color:spForm.status===s.id?"#fff":s.color,border:`1.5px solid ${s.color}`}}>{s.label}</button>))}</div></div>
         <div style={ROW}>
           <span style={LBL}>시도</span>
@@ -625,11 +665,13 @@ export default function App(){
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}>
           <div style={{position:"relative",flex:"1 1 120px"}}><span style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",fontSize:13,color:C.sub,pointerEvents:"none"}}>🔍</span><input value={spSearch} onChange={e=>setSpSearch(e.target.value)} placeholder="프로젝트명 검색" style={{...IST,width:"100%",paddingLeft:28,boxSizing:"border-box"}}/></div>
-          <input value={spFMgr} onChange={e=>setSpFMgr(e.target.value)} placeholder="👤 담당자" style={{...IST,width:85}}/>
+          <select value={spFMgr} onChange={e=>setSpFMgr(e.target.value)} style={{...SEL,width:100}}><option value="">👤 담당자</option>{MEMBERS.map(m=><option key={m} value={m}>{m}</option>)}</select>
           <select value={spFSido} onChange={e=>setSpFSido(e.target.value)} style={{...SEL,width:100}}><option value="">📍 지역 전체</option>{Object.keys(SIDO_GU).map(s=><option key={s} value={s}>{s}</option>)}</select>
           <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{[["all","전체"],...STATUS_LIST.map(s=>[s.id,s.label])].map(([id,lbl])=>(<button key={id} onClick={()=>setSpFilter(id)} style={{...BTN,padding:"5px 9px",fontSize:12,fontWeight:spFilter===id?700:400,background:spFilter===id?C.acc:"transparent",color:spFilter===id?"#fff":C.sub,border:`1px solid ${spFilter===id?C.acc:C.bd}`}}>{lbl}</button>))}</div>
         </div>
-        {filteredProjs.length===0?(
+        {loading?(
+          <div style={{textAlign:"center",padding:"40px 0",color:C.sub}}><div style={{fontSize:24,marginBottom:8,animation:"spin 1s linear infinite"}}>⏳</div><div>데이터 불러오는 중...</div></div>
+        ):filteredProjs.length===0?(
           <div style={{textAlign:"center",padding:"28px 0",color:C.sub}}><div style={{fontSize:28,marginBottom:6}}>📋</div><div>{(spSearch||spFMgr||spFSido||spFilter!=="all")?"검색 결과 없음":"프로젝트가 없습니다. 위에서 추가해주세요."}</div></div>
         ):filteredProjs.map(p=>(
           <div key={p.id} style={{display:"flex",alignItems:"flex-start",gap:7,padding:"12px 14px",borderRadius:8,border:`1px solid ${C.bd}`,marginBottom:7,background:dark?"#1E293B":"#FAFBFF"}}>
@@ -646,7 +688,11 @@ export default function App(){
                 {p.installer&&<span>🔧 {p.installer} · </span>}
                 {p.memo&&<span>{p.memo}</span>}
               </div>
-              <div style={{fontSize:11,color:C.sub,marginTop:2}}>{p.updatedAt&&new Date(p.updatedAt).toLocaleString("ko-KR")}</div>
+              <div style={{fontSize:11,color:C.sub,marginTop:2,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                {p.updatedAt&&<span>{new Date(p.updatedAt).toLocaleString("ko-KR")}</span>}
+                {p.lastEditor&&<span style={{color:dark?"#60A5FA":"#2563EB",fontWeight:600}}>✏️ {p.lastEditor}</span>}
+                {p.calcData?<span style={{color:C.res,fontWeight:600}}>✅ 산정완료</span>:<span style={{color:C.warn,fontWeight:600}}>⏳ 미산정</span>}
+              </div>
             </div>
             <button onClick={()=>openCalc(p)} style={{...BTN,padding:"6px 12px",fontSize:12,background:C.acc,color:"#fff",flexShrink:0}}>📐 용량산정</button>
             <button onClick={()=>{setSpEditId(p.id);setSpForm({name:p.name,status:p.status,sido:p.sido||"",sigungu:p.sigungu||"",manager:p.manager||"",distributor:p.distributor||"",installer:p.installer||"",memo:p.memo||""});window.scrollTo(0,0);}} style={{...BTN,padding:"6px 10px",fontSize:12,background:C.hi,color:C.acc,border:`1px solid ${C.acc}`,flexShrink:0}}>수정</button>
@@ -1131,7 +1177,13 @@ export default function App(){
         </div>
       ):(<>
         <div style={SEC}>
-          <div style={SECH}>💰 경제성 분석</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={SECH}>💰 경제성 분석</div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={saveCalc} style={{...BTN,background:activePid?C.acc:"#9CA3AF",color:"#fff",padding:"7px 14px",fontSize:12}} disabled={!activePid}>💾 저장</button>
+              <button onClick={exportResult} style={{...BTN,background:dark?"#065F46":"#ECFDF5",color:C.res,border:`1.5px solid ${C.res}`,padding:"7px 14px",fontSize:12}}>📋 전체 복사</button>
+            </div>
+          </div>
           <div style={{background:dark?"#1E3A5F":"#EFF6FF",border:`1px solid ${dark?"#2563EB":"#BFDBFE"}`,borderRadius:7,padding:"10px 14px",marginBottom:16,fontSize:13}}>
             월 총 열부하 <b>{fmt0(totalMon)}kWh/월</b> · 적용 COP <b>{fmt(effCOP,2)}</b> · 월 전력소비 <b>{fmt0(monthlyElec)}kWh/월</b>
             {recM&&<span> · 추천 HP <b>{recM.label}×{recN}대</b></span>}
