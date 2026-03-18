@@ -5,7 +5,7 @@ import { supabase } from "./supabase";
 // ═══════════════════════ 상수 ═══════════════════════
 
 const CLIMATE = [
-{ id:"north",  label:"북부/한랭지", desc:"강원 내륙·철원 (-15℃)", heatW:300, srcT:5  },
+{ id:"north",  label:"북부/한랭지역역역", desc:"강원 내륙·철원 (-15℃)", heatW:300, srcT:5  },
 { id:"central",label:"중부",        desc:"서울·경기·충청 (-10℃)", heatW:230, srcT:10 },
 { id:"south",  label:"남부/제주",   desc:"부산·광주·제주 (-5℃)",  heatW:200, srcT:15 },
 ];
@@ -570,7 +570,7 @@ const CALC_FIELDS={calcMode,bizId,climId,wsrcId,customSrcT,opHRaw,utilRate,equip
 
 const openCalc=p=>{setActivePid(p.id);if(p.calcData){const d=p.calcData;
 if(d.calcMode)setCalcMode(d.calcMode);if(d.bizId)setBizId(d.bizId);
-if(d.climId)setClimId(d.climId);if(d.wsrcId)setWsrcId(d.wsrcId);if(d.customSrcT!==undefined)setCustomSrcT(d.customSrcT);
+if(d.climId)setClimId(d.climId);else if(p.sido&&SIDO_CLIMATE[p.sido])setClimId(SIDO_CLIMATE[p.sido]);else if(p.sido&&SIDO_CLIMATE[p.sido])setClimId(SIDO_CLIMATE[p.sido]);if(d.wsrcId)setWsrcId(d.wsrcId);if(d.customSrcT!==undefined)setCustomSrcT(d.customSrcT);
 if(d.opHRaw)setOpHRaw(d.opHRaw);if(d.utilRate)setUtilRate(d.utilRate);if(d.equipList)setEquipList(d.equipList);
 if(d.heatArea)setHeatArea(d.heatArea);if(d.heatRoomCalc)setHeatRoomCalc(d.heatRoomCalc);if(d.heatRooms)setHeatRooms(d.heatRooms);if(d.customHeatW)setCustomHeatW(d.customHeatW);if(d.simCoef)setSimCoef(d.simCoef);
 if(d.hpTempRaw)setHpTempRaw(d.hpTempRaw);if(d.tankTypeId)setTankTypeId(d.tankTypeId);if(d.circTypeId)setCircTypeId(d.circTypeId);
@@ -813,7 +813,7 @@ return(
     </div>}
 
     <div style={HDR}>
-      <div><div style={{fontSize:15,fontWeight:700}}>HP 용량 산정 시스템 v20</div><div style={{fontSize:11,opacity:.75}}>히트펌프·축열조 산정 & 프로젝트 관리</div></div>
+      <div><div style={{fontSize:15,fontWeight:700}}>히트펌프 용량 산정 시스템 v1.0 (2026.03.18)</div><div style={{fontSize:11,opacity:.75}}>히트펌프·축열조 산정 & 프로젝트 관리</div></div>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         <span onClick={()=>setShowNameModal(true)} style={{fontSize:12,color:"rgba(255,255,255,.8)",cursor:"pointer",padding:"4px 8px",borderRadius:4,background:"rgba(255,255,255,.12)"}}>{myName||"이름 설정"}</span>
         <button onClick={()=>setDark(!dark)} style={{...BTN,background:"rgba(255,255,255,.18)",color:"#fff",padding:"5px 12px"}}>{dark?"☀":"🌙"}</button>
@@ -1031,7 +1031,7 @@ return(
           <div>일일 급탕열량 = Σ설비열량 × 순환계수({circCoef}) = <b>{fmt(dailyHeatWithLoss,1)} kWh/일</b></div>
           <div>급탕 기본부하 = {fmt(dailyHeatWithLoss,1)} ÷ {opH}h = <b>{fmt(hwBaseLoad,1)} kW</b></div>
           <div>급탕 피크부하 = Σ(설비피크×순환계수) = <b>{fmt(hwPeakLoad,1)} kW</b></div>
-          <div>대표 피크시간 = 가중평균 = <b>{fmt(repPeakH,1)}h</b></div>
+          <div>피크시간 = 가중평균 = <b>{fmt(repPeakH,1)}h</b></div>
         </div>)}
       </div>)}
     </div>)}
@@ -1094,8 +1094,8 @@ return(
         <div style={{marginTop:4,textAlign:"center"}}><button onClick={()=>tog("hp_detail")} style={{...BTN,padding:"3px 10px",fontSize:11,background:"transparent",color:C.acc,border:`1px solid ${C.acc}`}}>{openDet.hp_detail?"▼ 산출 근거":"▶ 산출 근거"}</button></div>
         {openDet.hp_detail&&(<div style={{marginTop:6,padding:"8px 10px",background:dark?"#0F172A":"#F8FAFC",border:`1px dashed ${C.bd}`,borderRadius:5,fontSize:11.5,color:C.sub,lineHeight:1.8}}>
           <div>A = 급탕기본부하({fmt(hwBaseLoad,1)})×1.25 + 난방부하적용({fmt(htLoad*(sc<1&&calcMode==="both"?sc:1),1)}) = <b>{fmt(hpR?.condA,1)} kW</b></div>
-          {hpR?.mode==="general"&&<><div>축열조방열분 = {fmt(effTank,1)}톤 × {fmt(hptTank,2)}kWh/톤 ÷ {fmt(repPeakH,1)}h = <b>{fmt(hpR.tankDR||0,1)} kW</b></div>
-          <div>B = max(A, 총피크({fmt(totalPeak,1)}) - 방열분({fmt(hpR.tankDR||0,1)})) = <b>{fmt(hpR?.condB,1)} kW</b></div>
+          {hpR?.mode==="general"&&<><div>축열조 담당부하 = {fmt(effTank,1)}톤 × {fmt(hptTank,2)}kWh/톤 ÷ {fmt(repPeakH,1)}h = <b>{fmt(hpR.tankDR||0,1)} kW</b></div>
+          <div>B = max(A, 총피크({fmt(totalPeak,1)}) - 담당부하({fmt(hpR.tankDR||0,1)})) = <b>{fmt(hpR?.condB,1)} kW</b></div>
           <div>C = max(B, 기본부하({fmt(basicLoad,1)}) + 사용열량÷재충전시간) = <b>{fmt(hpR?.condC,1)} kW</b></div></>}
           <div>필요 HP = max(A,B,C) = <b>{fmt(hpR?.needed,1)} kW</b></div>
         </div>)}
@@ -1106,7 +1106,7 @@ return(
 
       {tankSpace==="yes"&&(<div style={RBOX}>
         <div style={{fontSize:12.5,fontWeight:700,color:C.pri,marginBottom:9}}>🪣 축열조</div>
-        <div style={{fontSize:12,color:C.sub,marginBottom:8}}>ΔT {tankType.tankDT}℃ → 단위열량 {fmt(hptTank,3)} kWh/톤  |  대표 피크시간 {fmt(repPeakH,1)}h</div>
+        <div style={{fontSize:12,color:C.sub,marginBottom:8}}>ΔT {tankType.tankDT}℃ → 단위열량 {fmt(hptTank,3)} kWh/톤  |  피크시간 {fmt(repPeakH,1)}h</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,textAlign:"center",marginBottom:10}}>
           <div style={{background:dark?"#064E3B":"#ECFDF5",border:`1px solid ${dark?"#065F46":"#A7F3D0"}`,borderRadius:7,padding:"9px 5px"}}><div style={{fontSize:11,color:C.sub}}>최소 축열조</div><div style={{fontSize:20,fontWeight:800,color:C.res}}>{fmt(tankMin,1)}<span style={{fontSize:11}}> 톤</span></div><div style={{fontSize:10,color:C.sub}}>HP 절감 시작점</div></div>
           <div style={{background:dark?"#1E3A5F":"#EFF6FF",border:`1px solid ${dark?"#2563EB":"#BFDBFE"}`,borderRadius:7,padding:"9px 5px"}}><div style={{fontSize:11,color:C.sub}}>최적 축열조</div><div style={{fontSize:20,fontWeight:800,color:C.acc}}>{tankOpt!=null?fmt(tankOpt,1):"—"}<span style={{fontSize:11}}> 톤</span></div><div style={{fontSize:10,color:C.sub}}>HP 최소화 지점</div></div>
