@@ -119,7 +119,7 @@ type, subtype:subtype||null,
 targetTemp:"42", count:"1",
 volume:"5", freq:"1", tempDrop:"2",
 volL:"300", freqDay:"1",
-people:"", perPerson:"0.05",
+people:"", perPerson:"0.05", showerRooms:"", showerPpRoom:"2",
 poolVol:"", cycleDays:"30", poolArea:"", poolLocation:"indoor",
 beds:"", litPerPerson:"80", weeksFreq:"3",
 });
@@ -430,7 +430,7 @@ if(elecType==="night"){
   }
 }
 
-const monthlyElec=totalMonthly>0?totalMonthly/effCOP:0;
+const monthlyElec=totalMonthly>0?totalMonthly/effCOP2:0;
 const elecCost=monthlyElec*(parseFloat(dayRate)||120);
 const FUELS_HEAT={lpg:12.0,lng:10.55,kerosene:9.1,diesel:8.4,electric:1.0};
 const fuelHeat=FUELS_HEAT[fuelId]||10;
@@ -444,6 +444,14 @@ const isBalanced=hpR?.mode==="general"&&_spread<5;
 const isCDom=!isBalanced&&hpR?.mode==="general"&&hpR.condC!=null&&hpR.condC>=hpR.condB&&hpR.condC>=hpR.condA;
 const isBDom=!isBalanced&&!isCDom&&hpR?.mode==="general"&&hpR.condB>hpR.condA;
 
+// ── COP 2-pass 보정: 추천 모델의 실제 COP로 effCOP 재산정 ──
+let effCOP2=effCOP;
+let copRaw2=copRaw;
+if(hpRec&&hpRec.model){
+  copRaw2=hpRec.model.cop;
+  effCOP2=copRaw2*copWt;
+}
+
 // ── 급탕·풀가온 분리 열량 (검증용) ──
 let dailyHwOnly=0, dailyPoolOnly=0;
 if(calcMode!=="heating"){
@@ -455,7 +463,7 @@ if(calcMode!=="heating"){
   dailyPoolOnly*=circCoef;
 }
 
-return{srcT,hpTemp,dT:hpTemp-srcT,hpt,hptTank,opH,heatW,sc,circCoef,copRaw,copWt,effCOP,repPeakH,rawPeak,tankAutoApplied,tankOptCalc,
+return{srcT,hpTemp,dT:hpTemp-srcT,hpt,hptTank,opH,heatW,sc,circCoef,copRaw,copRaw2,copWt,effCOP,effCOP2,repPeakH,rawPeak,tankAutoApplied,tankOptCalc,
        hwBaseLoad,hwPeakLoad,dailyHeatWithLoss,monthlyHwHeat,equipDetails,
        htLoad,monthlyHtHeat,totalPeak,basicLoad,totalMonthly,
        existT,newT,enteredTank,tankMin,tankOpt,hpOpt,effTank,
@@ -592,6 +600,54 @@ return mkEquip(type,null);
 setEquipList(defaultEquips);
 };
 
+// 샘플 프로젝트 로드
+const loadSample=async()=>{
+  const sampleId="sample_"+Date.now();
+  const sampleProj={
+    id:sampleId,name:"[샘플] 중부 펜션 10실",status:"site",sido:"경기",sigungu:"가평군",
+    manager:"",distributor:"",installer:"",memo:"샘플 데이터 — 삭제 가능",
+    updatedAt:new Date().toISOString(),
+    calcData:{
+      calcMode:"both",bizId:"hotel",climId:"central",wsrcId:"tap",customSrcT:"",
+      opHRaw:"16",
+      equipList:[
+        {id:"s1",type:"bathtub",subtype:null,targetTemp:"42",count:"10",volume:"5",freq:"1",tempDrop:"2",volL:"300",freqDay:"1",people:"",perPerson:"0.05",showerRooms:"",showerPpRoom:"2",poolVol:"",cycleDays:"30",poolArea:"",poolLocation:"indoor",beds:"",litPerPerson:"80",weeksFreq:"3"},
+        {id:"s2",type:"shower",subtype:null,targetTemp:"42",count:"1",volume:"5",freq:"1",tempDrop:"2",volL:"300",freqDay:"1",people:"20",perPerson:"0.05",showerRooms:"10",showerPpRoom:"2",poolVol:"",cycleDays:"30",poolArea:"",poolLocation:"indoor",beds:"",litPerPerson:"80",weeksFreq:"3"},
+      ],
+      heatArea:"60",heatRooms:[],customHeatW:"",simCoef:"0.7",
+      hpTempRaw:"60",tankTypeId:"4",circTypeId:"pension",
+      makerId:"lg",copWeight:"0.9",contractPower:"50",maxDemand:"30",
+      hpOverrideModel:"",hpOverrideUnits:"",
+      existTank:"",newTankRaw:"",tankSpace:"yes",
+      elecType:"general",nightLoad:"hotwater",nightContract:"",nightOpH:"8",
+      nightMakerId:"lg",nightModelId:"lg16",
+      fuelId:"lng",fuelUnit:"kg",fuelMon:"800",fuelPrc:"1100",
+      dayRate:"120",nightRate:"56",instCost:"3000",
+      vBoilers:[{
+        id:"sb1",name:"기존 가스보일러",fuelType:"lng",purpose:"hotwater_heating",
+        capacity:"50",efficiency:"",startYear:"2024",startMonth:"1",
+        monthlyData:[
+          {year:2024,month:1,usage:"1200",cost:"1320000"},
+          {year:2024,month:2,usage:"1100",cost:"1210000"},
+          {year:2024,month:3,usage:"850",cost:"935000"},
+          {year:2024,month:4,usage:"500",cost:"550000"},
+          {year:2024,month:5,usage:"350",cost:"385000"},
+          {year:2024,month:6,usage:"280",cost:"308000"},
+          {year:2024,month:7,usage:"250",cost:"275000"},
+          {year:2024,month:8,usage:"260",cost:"286000"},
+          {year:2024,month:9,usage:"300",cost:"330000"},
+          {year:2024,month:10,usage:"550",cost:"605000"},
+          {year:2024,month:11,usage:"900",cost:"990000"},
+          {year:2024,month:12,usage:"1150",cost:"1265000"},
+        ],
+      }],
+    }
+  };
+  const arr=[sampleProj,...projects];
+  await persist(arr);
+  openCalc(sampleProj);
+};
+
 // 스타일
 const C=dark?{bg:"#0F172A",card:"#1E293B",bd:"#334155",txt:"#F1F5F9",sub:"#94A3B8",pri:"#60A5FA",acc:"#3B82F6",res:"#34D399",warn:"#FBBF24",err:"#F87171",inp:"#0F172A",inpB:"#475569",hi:"#1E3A5F"}
 :{bg:"#F0F4F8",card:"#FFFFFF",bd:"#E2E8F0",txt:"#1A202C",sub:"#718096",pri:"#1B3A5C",acc:"#2563EB",res:"#059669",warn:"#D97706",err:"#DC2626",inp:"#F7FAFC",inpB:"#CBD5E0",hi:"#EFF6FF"};
@@ -613,7 +669,7 @@ const tog=k=>setOpenDet(p=>({...p,[k]:!p[k]}));
 const statBadge=sid=>{const s=STATUS_LIST.find(x=>x.id===sid);return s?{color:s.color,background:s.bg,border:`1px solid ${s.border}`,padding:"2px 9px",borderRadius:12,fontSize:12,fontWeight:600,whiteSpace:"nowrap"}:{};};
 const saveName=n=>{setMyName(n);localStorage.setItem("hp_myname",n);setShowNameModal(false);};
 const filteredProjs=projects.filter(p=>{if(spFilter!=="all"&&p.status!==spFilter)return false;if(spFMgr&&!(p.manager||"").toLowerCase().includes(spFMgr.toLowerCase()))return false;if(spFSido&&p.sido!==spFSido)return false;if(spSearch&&!(p.name||"").toLowerCase().includes(spSearch.toLowerCase()))return false;return true;});
-const{srcT,hpTemp,hpt,hptTank,opH,heatW,sc,circCoef,copRaw,copWt,effCOP,repPeakH,hwBaseLoad,hwPeakLoad,dailyHeatWithLoss,monthlyHwHeat,equipDetails,htLoad,monthlyHtHeat,totalPeak,basicLoad,totalMonthly,existT,newT,enteredTank,tankMin,tankOpt,hpOpt,effTank,hpR,hpRec,isCDom,isBDom,isBalanced,nightR,tankAutoApplied,tankOptCalc,rawPeak,monthlyElec,elecCost,curCost,savings,payback,dailyHwOnly,dailyPoolOnly}=R;
+const{srcT,hpTemp,hpt,hptTank,opH,heatW,sc,circCoef,copRaw,copRaw2,copWt,effCOP,effCOP2,repPeakH,hwBaseLoad,hwPeakLoad,dailyHeatWithLoss,monthlyHwHeat,equipDetails,htLoad,monthlyHtHeat,totalPeak,basicLoad,totalMonthly,existT,newT,enteredTank,tankMin,tankOpt,hpOpt,effTank,hpR,hpRec,isCDom,isBDom,isBalanced,nightR,tankAutoApplied,tankOptCalc,rawPeak,monthlyElec,elecCost,curCost,savings,payback,dailyHwOnly,dailyPoolOnly}=R;
 
 const renderEquip=(eq)=>{
 const detail=equipDetails.find(d=>d.id===eq.id);
@@ -627,6 +683,7 @@ return(
 <span style={{fontSize:13,fontWeight:700,color:C.pri}}>{labelMap[eq.type]}{eq.subtype==="replace"?" (교체있음)":eq.subtype==="no_replace"?" (교체없음)":""}</span>
 <div style={{display:"flex",alignItems:"center",gap:8}}>
 {dailyHeat>0&&<span style={{fontSize:12,color:C.acc,fontWeight:600}}>{fmt(dailyHeat,1)} kWh/일</span>}
+<button onClick={()=>tog("eq_"+eq.id)} style={{...BTN,padding:"3px 8px",fontSize:11,background:dark?"#1E293B":"#F0F4FF",color:C.acc,border:`1px solid ${C.acc}`}}>{openDet["eq_"+eq.id]?"▼ 수식":"▶ 수식"}</button>
 <button onClick={()=>removeEquip(eq.id)} style={{...BTN,padding:"3px 8px",fontSize:11,background:"#FFF5F5",color:C.err,border:"1px solid #FCA5A5"}}>삭제</button>
 </div>
 </div>
@@ -650,9 +707,16 @@ return(
 {eq.type==="shower"&&<>
 <div style={{display:"flex",flexDirection:"column",gap:4}}>
 <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
+<span style={{fontSize:12,color:C.sub,minWidth:90}}>이용인원 계산</span>
+<NI v={eq.showerRooms||""} s={v=>updateEquip(eq.id,"showerRooms",v)} ph="객실수" st={{...INP,width:65}} sfx="실"/>
+<span style={{fontSize:13,color:C.sub}}>×</span>
+<NI v={eq.showerPpRoom||""} s={v=>updateEquip(eq.id,"showerPpRoom",v)} ph="2" st={{...INP,width:50}} sfx="인/실"/>
+{(parseFloat(eq.showerRooms)>0)&&<><span style={{fontSize:13,fontWeight:700,color:C.acc}}>= {Math.round((parseFloat(eq.showerRooms)||0)*(parseFloat(eq.showerPpRoom)||2))}인</span>
+<button onClick={()=>updateEquip(eq.id,"people",String(Math.round((parseFloat(eq.showerRooms)||0)*(parseFloat(eq.showerPpRoom)||2))))} style={{...BTN,padding:"3px 8px",fontSize:11,background:C.acc,color:"#fff"}}>적용</button></>}
+</div>
+<div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
 <span style={{fontSize:12,color:C.sub,minWidth:90}}>하루 평균 이용인원</span>
-<NI v={eq.people} s={v=>updateEquip(eq.id,"people",v)} ph={bizId==="hotel"&&roomCount?String(roomCount*2):"30"} st={{...INP,width:68}} sfx="인"/>
-{bizId==="hotel"&&roomCount>0&&!eq.people&&<span style={{fontSize:11,color:C.sub}}>객실 {roomCount}실 × 2인 = {roomCount*2}인 기본값</span>}
+<NI v={eq.people} s={v=>updateEquip(eq.id,"people",v)} ph="30" st={{...INP,width:68}} sfx="인"/>
 </div>
 <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
 <span style={{fontSize:12,color:C.sub,minWidth:90}}>1인당 온수량</span>
@@ -684,6 +748,14 @@ return(
 <NI v={eq.targetTemp} s={v=>updateEquip(eq.id,"targetTemp",v)} ph="42" st={{...INP,width:55}} sfx="℃"/>
 </>}
 </div>
+{openDet["eq_"+eq.id]&&dailyHeat>0&&(<div style={{marginTop:6,padding:"6px 10px",background:dark?"#0F172A":"#F8FAFC",border:`1px dashed ${C.bd}`,borderRadius:5,fontSize:11,color:C.sub,fontFamily:"'Consolas','맑은 고딕',monospace",lineHeight:1.8}}>
+{eq.type==="tang"&&eq.subtype==="replace"&&<>톤수({eq.volume}) × 교체횟수({eq.freq}) × 탕수({eq.count}) × 1.163 × ({eq.targetTemp}℃ - {srcT}℃) = <b style={{color:C.acc}}>{fmt(dailyHeat,1)} kWh/일</b></>}
+{eq.type==="tang"&&eq.subtype==="no_replace"&&<>톤수({eq.volume}) × 수온강하({eq.tempDrop}℃) × 1.163 = <b style={{color:C.acc}}>{fmt(dailyHeat,1)} kWh/일</b></>}
+{eq.type==="bathtub"&&<>({eq.volL}L ÷ 1000) × 사용횟수({eq.freqDay}) × 개수({eq.count}) × 1.163 × ({eq.targetTemp}℃ - {srcT}℃) = <b style={{color:C.acc}}>{fmt(dailyHeat,1)} kWh/일</b></>}
+{eq.type==="shower"&&<>이용인원({eq.people||0}) × 1인({eq.perPerson}톤) × 1.163 × ({eq.targetTemp}℃ - {srcT}℃) = <b style={{color:C.acc}}>{fmt(dailyHeat,1)} kWh/일</b></>}
+{eq.type==="pool"&&<>{eq.subtype==="replace"?`교체: ${eq.poolVol||0}톤÷${eq.cycleDays||30}일×1.163×(${eq.targetTemp}℃-${srcT}℃) + `:""}방열: {eq.poolArea||0}m²×{eq.poolLocation==="outdoor"?"10.0":"6.0"} = <b style={{color:C.acc}}>{fmt(dailyHeat,1)} kWh/일</b></>}
+{eq.type==="hospital"&&<>{eq.beds||0}병상 × ({eq.weeksFreq||3}회÷7) × ({eq.litPerPerson||80}L÷1000) × 1.163 × ({eq.targetTemp}℃ - {srcT}℃) = <b style={{color:C.acc}}>{fmt(dailyHeat,1)} kWh/일</b></>}
+</div>)}
 </div>
 );
 };
@@ -723,7 +795,7 @@ return(
     </div>}
 
     <div style={HDR}>
-      <div><div style={{fontSize:15,fontWeight:700}}>HP 용량 산정 시스템 v15</div><div style={{fontSize:11,opacity:.75}}>히트펌프·축열조 산정 & 프로젝트 관리</div></div>
+      <div><div style={{fontSize:15,fontWeight:700}}>HP 용량 산정 시스템 v18</div><div style={{fontSize:11,opacity:.75}}>히트펌프·축열조 산정 & 프로젝트 관리</div></div>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         <span onClick={()=>setShowNameModal(true)} style={{fontSize:12,color:"rgba(255,255,255,.8)",cursor:"pointer",padding:"4px 8px",borderRadius:4,background:"rgba(255,255,255,.12)"}}>{myName||"이름 설정"}</span>
         <button onClick={()=>setDark(!dark)} style={{...BTN,background:"rgba(255,255,255,.18)",color:"#fff",padding:"5px 12px"}}>{dark?"☀":"🌙"}</button>
@@ -753,6 +825,7 @@ return(
     <div style={{display:"flex",gap:8,marginTop:6}}>
       <button onClick={saveSpProj} style={{...BTN,background:C.acc,color:"#fff",padding:"9px 20px"}}>{spEditId?"✅ 수정완료":"➕ 추가"}</button>
       {spEditId&&<button onClick={()=>{setSpEditId(null);setSpForm(EMPTY_FORM);}} style={{...BTN,background:"#9CA3AF",color:"#fff",padding:"9px 14px"}}>취소</button>}
+      <button onClick={loadSample} style={{...BTN,background:dark?"#1E3A5F":"#EFF6FF",color:C.acc,padding:"9px 14px",border:`1px solid ${C.acc}`}}>📦 샘플 프로젝트 로드</button>
     </div>
   </div>
   <div style={SEC}>
@@ -860,7 +933,7 @@ return(
       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8}}>
         <span style={{fontSize:12,color:C.sub}}>COP 가중치:</span>
         <select value={copWeight} onChange={e=>setCopWeight(e.target.value)} style={{...SEL,width:160}}>{COP_WEIGHTS.map(w=>(<option key={w.v} value={w.v}>{w.label}</option>))}</select>
-        <span style={{fontSize:13,color:C.acc,fontWeight:700}}>→ 적용 COP: {fmt(copRaw*(parseFloat(copWeight)||0.9),2)}</span>
+        <span style={{fontSize:13,color:C.acc,fontWeight:700}}>→ 기준 COP: {fmt(copRaw*(parseFloat(copWeight)||0.9),2)} (추천 모델에 따라 보정됨)</span>
       </div>
       <div style={{borderTop:`1px dashed ${C.bd}`,paddingTop:8,marginTop:4}}>
         <div style={{fontSize:12.5,fontWeight:600,color:C.acc,marginBottom:6}}>⚡ 전력 계약 현황</div>
@@ -930,6 +1003,13 @@ return(
           <div><div style={{fontSize:11,color:C.sub}}>급탕 피크부하</div><div style={{fontSize:18,fontWeight:800,color:C.warn}}>{fmt(hwPeakLoad,1)}</div><div style={{fontSize:11}}>kW</div></div>
         </div>
         {circCoef>1&&<div style={{marginTop:7,padding:"4px 9px",background:dark?"#064E3B":"#ECFDF5",borderRadius:5,fontSize:12,color:dark?"#6EE7B7":"#065F46",textAlign:"center"}}>🔄 순환손실계수 ×{circCoef} 적용 완료</div>}
+        <div style={{marginTop:7,textAlign:"center"}}><button onClick={()=>tog("hw_detail")} style={{...BTN,padding:"3px 10px",fontSize:11,background:"transparent",color:C.acc,border:`1px solid ${C.acc}`}}>{openDet.hw_detail?"▼ 산출 근거":"▶ 산출 근거"}</button></div>
+        {openDet.hw_detail&&(<div style={{marginTop:6,padding:"8px 10px",background:dark?"#0F172A":"#F8FAFC",border:`1px dashed ${C.bd}`,borderRadius:5,fontSize:11.5,color:C.sub,lineHeight:1.8}}>
+          <div>일일 급탕열량 = Σ설비열량 × 순환계수({circCoef}) = <b>{fmt(dailyHeatWithLoss,1)} kWh/일</b></div>
+          <div>급탕 기본부하 = {fmt(dailyHeatWithLoss,1)} ÷ {opH}h = <b>{fmt(hwBaseLoad,1)} kW</b></div>
+          <div>급탕 피크부하 = Σ(설비피크×순환계수) = <b>{fmt(hwPeakLoad,1)} kW</b></div>
+          <div>대표 피크시간 = 가중평균 = <b>{fmt(repPeakH,1)}h</b></div>
+        </div>)}
       </div>)}
     </div>)}
   </div>
@@ -950,7 +1030,7 @@ return(
       <div style={{...RBOX,marginBottom:8}}>
         <div style={{fontSize:12.5,fontWeight:700,color:C.pri,marginBottom:8}}>🔧 히트펌프 (일반전기)</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,textAlign:"center",marginBottom:8}}>
-          <div><div style={{fontSize:11,color:C.sub}}>적용 COP</div><div style={{fontSize:20,fontWeight:800,color:C.acc}}>{fmt(effCOP,2)}</div><div style={{fontSize:10,color:C.sub}}>{copRaw}×{parseFloat(copWeight)}</div></div>
+          <div><div style={{fontSize:11,color:C.sub}}>적용 COP</div><div style={{fontSize:20,fontWeight:800,color:C.acc}}>{fmt(effCOP2,2)}</div><div style={{fontSize:10,color:C.sub}}>{copRaw2}×{parseFloat(copWeight)}{copRaw2!==copRaw&&<span style={{color:C.res}}> (추천모델)</span>}</div></div>
           <div><div style={{fontSize:11,color:C.sub}}>필요 HP 용량</div><div style={{fontSize:20,fontWeight:800,color:C.warn}}>{fmt(hpR.needed,1)}<span style={{fontSize:11}}> kW</span></div></div>
           {hpRec&&<div><div style={{fontSize:11,color:C.sub}}>{hpRec.isOverride?"수동 구성":"추천 구성"}</div><div style={{fontSize:16,fontWeight:800,color:hpRec.isOverride?C.warn:C.res}}>{hpRec.model.label} × {hpRec.units}대</div><div style={{fontSize:11,color:C.sub}}>= {fmt(hpRec.totalKw,1)}kW</div></div>}
         </div>
@@ -966,8 +1046,8 @@ return(
           </div>
         </div>)}
         {/* HP 수동 조정 */}
-        {hpRec&&(<div style={{padding:"8px 10px",background:dark?"#1E293B":"#F8FAFC",border:`1px solid ${C.bd}`,borderRadius:7,marginBottom:8}}>
-          <div style={{fontSize:12,fontWeight:600,color:C.sub,marginBottom:6}}>모델·대수 수동 조정 (미입력시 자동 추천)</div>
+        {hpRec&&(<div style={{padding:"8px 10px",background:hpRec.isOverride?(dark?"#2D1B0E":"#FFFBEB"):(dark?"#1E293B":"#F8FAFC"),border:`1px solid ${hpRec.isOverride?C.warn:C.bd}`,borderRadius:7,marginBottom:8}}>
+          <div style={{fontSize:12,fontWeight:600,color:hpRec.isOverride?C.warn:C.sub,marginBottom:6}}>{hpRec.isOverride?"⚠️ 수동 구성 적용 중":"모델·대수 수동 조정 (미입력시 자동 추천)"}</div>
           <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
             <select value={hpOverrideModel} onChange={e=>setHpOverrideModel(e.target.value)} style={{...INP,width:130,cursor:"pointer"}}>
               <option value="">자동 선택</option>
@@ -977,12 +1057,21 @@ return(
             {(hpOverrideModel||hpOverrideUnits)&&<button onClick={()=>{setHpOverrideModel("");setHpOverrideUnits("");}} style={{...BTN,padding:"4px 8px",fontSize:11,background:"#F3F4F6",color:C.sub,border:`1px solid ${C.bd}`}}>초기화</button>}
           </div>
           {hpRec.overTen&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#3B1515":"#FEF2F2",border:`1px solid ${C.err}`,borderRadius:5,fontSize:12,color:C.err}}>⚠️ {hpRec.units}대 — 대규모 현장입니다. 별도 설계 검토를 권장합니다.</div>}
-          {hpRec.units===1&&hpRec.totalKw>hpR.needed*1.5&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#1E3A5F":"#EFF6FF",border:`1px solid ${C.acc}`,borderRadius:5,fontSize:12,color:C.acc}}>ℹ️ 최소 모델({hpRec.model.label})이 필요 용량({fmt(hpR.needed,1)}kW)의 {fmt(hpRec.totalKw/hpR.needed*100,0)}% — 소형 현장에서는 여유 용량으로 급탕+난방 안정 운전에 유리합니다.</div>}
+          {hpR.needed>0&&hpR.needed<5&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#2D1B0E":"#FFFBEB",border:`1px solid ${C.warn}`,borderRadius:5,fontSize:12,color:C.warn}}>💡 필요 용량 {fmt(hpR.needed,1)}kW — HP 도입보다 가정용 전기온수기가 더 경제적일 수 있습니다.</div>}
+          {hpRec.units===1&&hpR.needed>=5&&hpRec.totalKw>hpR.needed*1.5&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#1E3A5F":"#EFF6FF",border:`1px solid ${C.acc}`,borderRadius:5,fontSize:12,color:C.acc}}>ℹ️ 최소 모델({hpRec.model.label})이 필요 용량({fmt(hpR.needed,1)}kW)의 {fmt(hpRec.totalKw/hpR.needed*100,0)}% — 소형 현장에서는 여유 용량으로 안정 운전에 유리합니다.</div>}
         </div>)}
         {hpR.mode==="general"&&(<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:5,marginBottom:8,textAlign:"center"}}>
           {[["조건A\n(기본부하)",hpR.condA],["조건B\n(피크보완)",hpR.condB],["조건C\n(재충전)",hpR.condC]].map(([lbl,val])=>{const isMx=val===Math.max(hpR.condA,hpR.condB,hpR.condC||0);return(<div key={lbl} style={{background:isMx?(dark?"#1E3A5F":"#DBEAFE"):"transparent",border:`1px solid ${isMx?C.acc:C.bd}`,borderRadius:6,padding:"5px 3px"}}><div style={{fontSize:10,color:C.sub,whiteSpace:"pre-wrap"}}>{lbl}</div><div style={{fontSize:14,fontWeight:isMx?800:500,color:isMx?C.acc:C.sub}}>{fmt(val,1)} kW</div>{isMx&&<div style={{fontSize:10,color:C.acc}}>▲ 지배</div>}</div>);})}
         </div>)}
-        {isCDom&&<div style={{padding:"6px 9px",background:dark?"#1C1F2E":"#F0F4FF",border:`1px solid ${dark?"#4338CA":"#C7D2FE"}`,borderRadius:6,fontSize:12,color:dark?"#A5B4FC":"#4338CA"}}>🔒 조건C(재충전) 지배 — 축열조를 더 키워도 HP 용량이 줄지 않습니다.</div>}
+        <div style={{marginTop:4,textAlign:"center"}}><button onClick={()=>tog("hp_detail")} style={{...BTN,padding:"3px 10px",fontSize:11,background:"transparent",color:C.acc,border:`1px solid ${C.acc}`}}>{openDet.hp_detail?"▼ 산출 근거":"▶ 산출 근거"}</button></div>
+        {openDet.hp_detail&&(<div style={{marginTop:6,padding:"8px 10px",background:dark?"#0F172A":"#F8FAFC",border:`1px dashed ${C.bd}`,borderRadius:5,fontSize:11.5,color:C.sub,lineHeight:1.8}}>
+          <div>A = 급탕기본부하({fmt(hwBaseLoad,1)})×1.25 + 난방부하적용({fmt(htLoad*(sc<1&&calcMode==="both"?sc:1),1)}) = <b>{fmt(hpR?.condA,1)} kW</b></div>
+          {hpR?.mode==="general"&&<><div>축열조방열분 = {fmt(effTank,1)}톤 × {fmt(hptTank,2)}kWh/톤 ÷ {fmt(repPeakH,1)}h = <b>{fmt(hpR.tankDR||0,1)} kW</b></div>
+          <div>B = max(A, 총피크({fmt(totalPeak,1)}) - 방열분({fmt(hpR.tankDR||0,1)})) = <b>{fmt(hpR?.condB,1)} kW</b></div>
+          <div>C = max(B, 기본부하({fmt(basicLoad,1)}) + 사용열량÷재충전시간) = <b>{fmt(hpR?.condC,1)} kW</b></div></>}
+          <div>필요 HP = max(A,B,C) = <b>{fmt(hpR?.needed,1)} kW</b></div>
+        </div>)}
+        {isCDom&&<div style={{padding:"6px 9px",background:dark?"#1C1F2E":"#F0F4FF",border:`1px solid ${dark?"#4338CA":"#C7D2FE"}`,borderRadius:6,fontSize:12,color:dark?"#A5B4FC":"#4338CA",lineHeight:1.6}}>🔒 조건C(재충전) 지배 — 축열조를 더 키워도 HP 용량이 줄지 않습니다. 피크 부하 자체가 크므로, 탕 교체 시간 분산이나 피크 시간대 사용량 조정을 검토하면 HP 용량을 줄일 수 있습니다.</div>}
         {isBDom&&<div style={{padding:"6px 9px",background:dark?"#1E3A1E":"#F0FDF4",border:`1px solid ${dark?"#166534":"#BBF7D0"}`,borderRadius:6,fontSize:12,color:dark?"#86EFAC":"#166534"}}>📈 조건B(피크보완) 지배 — 축열조를 키울수록 HP 용량을 추가로 줄일 수 있습니다.</div>}
         {isBalanced&&<div style={{padding:"6px 9px",background:dark?"#064E3B":"#ECFDF5",border:`1px solid ${dark?"#065F46":"#A7F3D0"}`,borderRadius:6,fontSize:12,color:dark?"#6EE7B7":"#065F46"}}>⚖️ 균형 — 세 조건이 수렴했습니다. 축열조와 HP 용량이 최적 균형 상태입니다.</div>}
       </div>
@@ -1028,6 +1117,7 @@ return(
     <div style={{fontSize:12.5,color:C.sub,marginBottom:14,lineHeight:1.6}}>
       기존 보일러의 연료 사용 데이터를 입력하면, 계산기 산출값과 비교하여 용량 산정의 합리성을 확인합니다.
       급탕+난방 겸용 보일러는 <b>여름철(6~9월) 데이터</b>로 급탕분을 분리합니다.
+      <b>전기보일러</b>의 경우, 기저부하(조명·냉방 등)를 제외한 순수 보일러 사용분만 입력해야 합니다.
     </div>
     {dailyHeatWithLoss===0&&dailyPoolOnly===0&&(
       <div style={{padding:"14px 16px",background:dark?"#2D1B0E":"#FFFBEB",border:`1px solid ${dark?"#92400E":"#FDE68A"}`,borderRadius:8,marginBottom:14}}>
@@ -1082,8 +1172,16 @@ return(
                 {Array.from({length:12},(_,i)=><option key={i+1} value={String(i+1)}>{i+1}월</option>)}
               </select>
               <button onClick={()=>initMonths(b.id)} style={{...BTN,padding:"5px 10px",fontSize:12,background:C.hi,color:C.acc,border:`1px solid ${C.acc}`}}>12개월 생성</button>
+              <button onClick={()=>tog("paste_"+b.id)} style={{...BTN,padding:"5px 10px",fontSize:12,background:"transparent",color:C.sub,border:`1px solid ${C.bd}`}}>📋 엑셀 붙여넣기</button>
             </div>
-            <div style={{overflowX:"auto"}}>
+            {openDet["paste_"+b.id]&&(<div style={{marginBottom:8,padding:"8px 10px",background:dark?"#0F172A":"#F8FAFC",border:`1px dashed ${C.bd}`,borderRadius:6}}>
+                <div style={{fontSize:12,color:C.sub,marginBottom:6}}>엑셀에서 사용량·비용 두 열을 복사하여 붙여넣기 (Tab 구분, 행당 1개월)</div>
+                <textarea placeholder={"1월사용량\t1월비용\n2월사용량\t2월비용\n..."} rows={4} style={{...IST,width:"100%",fontFamily:"Consolas",fontSize:12,resize:"vertical",boxSizing:"border-box"}}
+                  onPaste={e=>{e.preventDefault();const txt=(e.clipboardData||window.clipboardData).getData("text");const rows=txt.trim().split("\n").map(r=>r.split("\t"));setVBoilers(p=>p.map(bl=>{if(bl.id!==b.id)return bl;const md=[...bl.monthlyData];rows.forEach((r,i)=>{if(i<md.length){md[i]={...md[i],usage:r[0]?.trim()||md[i].usage,cost:r[1]?.trim()||md[i].cost};}});return{...bl,monthlyData:md};}));tog("paste_"+b.id);}}
+                />
+                <div style={{fontSize:11,color:C.sub,marginTop:4}}>붙여넣기하면 자동으로 월별 데이터에 반영됩니다.</div>
+              </div>)}
+              <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
                   <tr style={{background:dark?"#1E293B":"#EFF6FF"}}>
@@ -1197,7 +1295,7 @@ return(
     <div style={SEC}>
       <div style={SECH}>💰 경제성 분석</div>
       <div style={{background:dark?"#1E3A5F":"#EFF6FF",border:`1px solid ${dark?"#2563EB":"#BFDBFE"}`,borderRadius:7,padding:"9px 12px",marginBottom:14,fontSize:12.5}}>
-        월 총 열부하 <b>{fmt0(totalMonthly)}kWh/월</b> · 적용 COP <b>{fmt(effCOP,2)}</b> · 월 전력소비 <b>{fmt0(monthlyElec)}kWh/월</b>
+        월 총 열부하 <b>{fmt0(totalMonthly)}kWh/월</b> · 적용 COP <b>{fmt(effCOP2,2)}</b> · 월 전력소비 <b>{fmt0(monthlyElec)}kWh/월</b>
       </div>
       <div style={{fontSize:13.5,fontWeight:700,color:C.pri,marginBottom:10}}>기존 연료</div>
       {vBoilers.length>0&&(()=>{
