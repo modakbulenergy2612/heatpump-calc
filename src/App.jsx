@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { supabase } from "./supabase";
 
 
 // ═══════════════════════ 상수 ═══════════════════════
@@ -286,15 +285,14 @@ const initMonths=(boilerId)=>{
 
 // Storage
 const fetchProjects=async()=>{
-try{const{data,error}=await supabase.from("projects").select("*").order("updated_at",{ascending:false});if(!error&&data)setProjects(data.map(r=>({...r.data,id:r.id})));}catch{}
+try{const r=await window.storage.get("hp_v13_projects");if(r)setProjects(JSON.parse(r.value));}catch{}
 };
-useEffect(()=>{(async()=>{await fetchProjects();setLoading(false);if(!localStorage.getItem("hp_myname"))setShowNameModal(true);else setMyName(localStorage.getItem("hp_myname"));})();const iv=setInterval(fetchProjects,30000);return()=>clearInterval(iv);},[]);
+useEffect(()=>{(async()=>{await fetchProjects();try{const n=await window.storage.get("hp_myname");if(n)setMyName(n.value);else setShowNameModal(true);}catch{setShowNameModal(true);}setLoading(false);})();},[]);
 const persist=async arr=>{
 const editor=myName||"(미지정)";
 const updated=arr.map(p=>({...p,lastEditor:editor}));
 setProjects(updated);
-for(const p of updated){const{id,...rest}=p;try{await supabase.from("projects").upsert({id,data:{...p,lastEditor:editor},updated_at:new Date().toISOString()});}catch{}}
-try{const{data:rows}=await supabase.from("projects").select("id");if(rows){const activeIds=new Set(updated.map(p=>p.id));const toDelete=rows.filter(r=>!activeIds.has(r.id)).map(r=>r.id);for(const did of toDelete){await supabase.from("projects").delete().eq("id",did);}}}catch{}
+try{await window.storage.set("hp_v13_projects",JSON.stringify(updated));}catch{}
 };
 
 const clim=CLIMATE.find(c=>c.id===climId)||CLIMATE[1];
@@ -676,7 +674,7 @@ const BTN={border:"none",borderRadius:6,cursor:"pointer",fontFamily:"inherit",fo
 const RBOX={background:dark?"#1E3A5F":"#EFF6FF",border:`1px solid ${dark?"#2563EB":"#BFDBFE"}`,borderRadius:8,padding:"12px 14px"};
 const tog=k=>setOpenDet(p=>({...p,[k]:!p[k]}));
 const statBadge=sid=>{const s=STATUS_LIST.find(x=>x.id===sid);return s?{color:s.color,background:s.bg,border:`1px solid ${s.border}`,padding:"2px 9px",borderRadius:12,fontSize:12,fontWeight:600,whiteSpace:"nowrap"}:{};};
-const saveName=n=>{setMyName(n);localStorage.setItem("hp_myname",n);setShowNameModal(false);};
+const saveName=async n=>{setMyName(n);try{await window.storage.set("hp_myname",n);}catch{}setShowNameModal(false);};
 const filteredProjs=projects.filter(p=>{if(spFilter!=="all"&&p.status!==spFilter)return false;if(spFMgr&&!(p.manager||"").toLowerCase().includes(spFMgr.toLowerCase()))return false;if(spFSido&&p.sido!==spFSido)return false;if(spSearch&&!(p.name||"").toLowerCase().includes(spSearch.toLowerCase()))return false;return true;});
 const{srcT,hpTemp,hpt,hptTank,opH,heatW,sc,circCoef,copRaw,copRaw2,copWt,effCOP,effCOP2,utilR,repPeakH,hwBaseLoad,hwPeakLoad,dailyHeatWithLoss,monthlyHwHeat,equipDetails,htLoad,monthlyHtHeat,totalPeak,basicLoad,totalMonthly,existT,newT,enteredTank,tankMin,tankOpt,hpOpt,effTank,hpR,hpRec,isCDom,isBDom,isBalanced,nightR,tankAutoApplied,tankOptCalc,rawPeak,monthlyElec,elecCost,curCost,savings,payback,dailyHwOnly,dailyPoolOnly}=R;
 
@@ -1051,7 +1049,7 @@ return(
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,textAlign:"center",marginBottom:8}}>
           <div><div style={{fontSize:11,color:C.sub}}>적용 COP</div><div style={{fontSize:20,fontWeight:800,color:C.acc}}>{fmt(effCOP2,2)}</div><div style={{fontSize:10,color:C.sub}}>{copRaw2}×{parseFloat(copWeight)}{copRaw2!==copRaw&&<span style={{color:C.res}}> (추천모델)</span>}</div></div>
           <div><div style={{fontSize:11,color:C.sub}}>필요 HP 용량</div><div style={{fontSize:20,fontWeight:800,color:C.warn}}>{fmt(hpR.needed,1)}<span style={{fontSize:11}}> kW</span></div></div>
-          {hpRec&&<div><div style={{fontSize:11,color:C.sub}}>{hpRec.isManual?"수동 구성":"추천 구성"}</div><div style={{fontSize:14,fontWeight:800,color:hpRec.isManual?C.warn:C.res}}>{hpRec.rows.map((r,i)=><span key={i}>{i>0?" + ":""}{r.model.label}×{r.units}</span>)}</div><div style={{fontSize:11,color:C.sub}}>= {fmt(hpRec.totalKw,1)}kW ({hpRec.totalUnits}대)</div></div>}
+          {hpRec&&hpRec.rows&&<div><div style={{fontSize:11,color:C.sub}}>{hpRec.isManual?"수동 구성":"추천 구성"}</div><div style={{fontSize:14,fontWeight:800,color:hpRec.isManual?C.warn:C.res}}>{hpRec.rows.map((r,i)=><span key={i}>{i>0?" + ":""}{r.model.label}×{r.units}</span>)}</div><div style={{fontSize:11,color:C.sub}}>= {fmt(hpRec.totalKw,1)}kW ({hpRec.totalUnits}대)</div></div>}
         </div>
         {/* 계약전력 증설 */}
         {hpRec&&(<div style={{padding:"8px 10px",background:dark?"#1B2A1B":"#F0FDF4",border:`1px solid ${dark?"#166534":"#BBF7D0"}`,borderRadius:7,marginBottom:8}}>
@@ -1079,7 +1077,7 @@ return(
             <button onClick={addHpRow} style={{...BTN,padding:"4px 10px",fontSize:12,background:C.hi,color:C.acc,border:`1px solid ${C.acc}`}}>+ 모델 추가</button>
             {hpManual.length>0&&<button onClick={()=>setHpManual([])} style={{...BTN,padding:"4px 10px",fontSize:12,background:"#F3F4F6",color:C.sub,border:`1px solid ${C.bd}`}}>초기화</button>}
           </div>
-          {hpRec.isManual&&hpRec.totalKw<hpR.needed*0.95&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#3B1515":"#FEF2F2",border:`1px solid ${C.err}`,borderRadius:5,fontSize:12,color:C.err}}>⚠️ HP 용량 부족 — 수동 구성 {fmt(hpRec.totalKw,1)}kW &lt; 필요 {fmt(hpR.needed,1)}kW. {fmt(hpR.needed-hpRec.totalKw,1)}kW 추가가 필요합니다.</div>}
+          {hpRec.isManual&&hpRec.totalKw<hpR.needed*0.95&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#3B1515":"#FEF2F2",border:`1px solid ${C.err}`,borderRadius:5,fontSize:12,color:C.err}}>⚠️ HP 용량 부족 — 수동 구성 {fmt(hpRec.totalKw,1)}kW {"<"} 필요 {fmt(hpR.needed,1)}kW. {fmt(hpR.needed-hpRec.totalKw,1)}kW 추가가 필요합니다.</div>}
           {hpRec.overTen&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#3B1515":"#FEF2F2",border:`1px solid ${C.err}`,borderRadius:5,fontSize:12,color:C.err}}>⚠️ {hpRec.totalUnits}대 — 대규모 현장입니다. 별도 설계 검토를 권장합니다.</div>}
           {hpR.needed>0&&hpR.needed<5&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#2D1B0E":"#FFFBEB",border:`1px solid ${C.warn}`,borderRadius:5,fontSize:12,color:C.warn}}>💡 필요 용량 {fmt(hpR.needed,1)}kW — HP 도입보다 가정용 전기온수기가 더 경제적일 수 있습니다.</div>}
           {!hpRec.isManual&&hpRec.totalUnits===1&&hpR.needed>=5&&hpRec.totalKw>hpR.needed*1.5&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#1E3A5F":"#EFF6FF",border:`1px solid ${C.acc}`,borderRadius:5,fontSize:12,color:C.acc}}>ℹ️ 최소 모델이 필요 용량({fmt(hpR.needed,1)}kW)의 {fmt(hpRec.totalKw/hpR.needed*100,0)}% — 소형 현장에서는 여유 용량으로 안정 운전에 유리합니다.</div>}
