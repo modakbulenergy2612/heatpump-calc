@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { supabase } from "./supabase";
 
 
 // ═══════════════════════ 상수 ═══════════════════════
@@ -117,8 +118,8 @@ id:Date.now()+"_"+Math.random().toString(36).slice(2,5),
 type, subtype:subtype||null,
 targetTemp:"42", count:"1",
 volume:"5", freq:"1", tempDrop:"2",
-volL:"300", freqDay:"1",
-people:"", perPerson:"0.05", showerRooms:"", showerPpRoom:"2",
+volL:"200", freqDay:"1",
+people:"", perPerson:"0.04", showerRooms:"", showerPpRoom:"2",
 poolVol:"", cycleDays:"30", poolArea:"", poolLocation:"indoor",
 beds:"", litPerPerson:"80", weeksFreq:"3",
 });
@@ -199,6 +200,11 @@ const[opHRaw,setOpHRaw]=useState("12");
 const[utilRate,setUtilRate]=useState("100");
 const[equipList,setEquipList]=useState([]);
 const[heatArea,setHeatArea]=useState("");
+const[heatRoomCalc,setHeatRoomCalc]=useState([]);
+const addHeatRoom=()=>setHeatRoomCalc(p=>[...p,{id:Date.now(),name:"",count:"",area:""}]);
+const removeHeatRoom=id=>setHeatRoomCalc(p=>p.filter(r=>r.id!==id));
+const updateHeatRoom=(id,f,v)=>setHeatRoomCalc(p=>p.map(r=>r.id===id?{...r,[f]:v}:r));
+const applyHeatRooms=()=>{const total=heatRoomCalc.reduce((s,r)=>(parseFloat(r.count)||0)*(parseFloat(r.area)||0)+s,0);if(total>0)setHeatArea(String(Math.round(total)));};
 const[heatRooms,setHeatRooms]=useState([]);
 const[customHeatW,setCustomHeatW]=useState("");
 const[simCoef,setSimCoef]=useState("1.0");
@@ -285,14 +291,14 @@ const initMonths=(boilerId)=>{
 
 // Storage
 const fetchProjects=async()=>{
-try{const r=await window.storage.get("hp_v13_projects");if(r)setProjects(JSON.parse(r.value));}catch{}
+try{const{data,error}=await supabase.from("projects").select("*").order("updated_at",{ascending:false});if(!error&&data)setProjects(data.map(r=>({...r.data,id:r.id})));}catch{}
 };
-useEffect(()=>{(async()=>{await fetchProjects();try{const n=await window.storage.get("hp_myname");if(n)setMyName(n.value);else setShowNameModal(true);}catch{setShowNameModal(true);}setLoading(false);})();},[]);
+useEffect(()=>{(async()=>{await fetchProjects();setLoading(false);if(!localStorage.getItem("hp_myname"))setShowNameModal(true);else setMyName(localStorage.getItem("hp_myname"));})();const iv=setInterval(fetchProjects,30000);return()=>clearInterval(iv);},[]);
 const persist=async arr=>{
 const editor=myName||"(미지정)";
 const updated=arr.map(p=>({...p,lastEditor:editor}));
 setProjects(updated);
-try{await window.storage.set("hp_v13_projects",JSON.stringify(updated));}catch{}
+for(const p of updated){const{id,...rest}=p;try{await supabase.from("projects").upsert({id,data:{...p,lastEditor:editor},updated_at:new Date().toISOString()});}catch{}}
 };
 
 const clim=CLIMATE.find(c=>c.id===climId)||CLIMATE[1];
@@ -560,13 +566,13 @@ const vResults=useMemo(()=>{
 const saveSpProj=async()=>{if(!spForm.name.trim()){alert("프로젝트명 입력");return;}const p={id:spEditId||Date.now().toString(),...spForm,name:spForm.name.trim(),updatedAt:new Date().toISOString(),calcData:null};const upd=spEditId?projects.map(x=>x.id===spEditId?{...x,...p,calcData:x.calcData}:x):[p,...projects];await persist(upd);setSpEditId(null);setSpForm(EMPTY_FORM);};
 const deleteProj=async id=>{if(!window.confirm("삭제?"))return;await persist(projects.filter(p=>p.id!==id));if(activePid===id)setActivePid(null);};
 
-const CALC_FIELDS={calcMode,bizId,climId,wsrcId,customSrcT,opHRaw,utilRate,equipList,heatArea,heatRooms,customHeatW,simCoef,hpTempRaw,tankTypeId,circTypeId,makerId,copWeight,contractPower,maxDemand,existBoilerPower,hpManual,existTank,newTankRaw,tankSpace,elecType,nightLoad,nightContract,nightOpH,nightMakerId,nightModelId,fuelId,fuelUnit,fuelMon,fuelPrc,dayRate,nightRate,instCost,vBoilers};
+const CALC_FIELDS={calcMode,bizId,climId,wsrcId,customSrcT,opHRaw,utilRate,equipList,heatArea,heatRoomCalc,customHeatW,simCoef,hpTempRaw,tankTypeId,circTypeId,makerId,copWeight,contractPower,maxDemand,existBoilerPower,hpManual,existTank,newTankRaw,tankSpace,elecType,nightLoad,nightContract,nightOpH,nightMakerId,nightModelId,fuelId,fuelUnit,fuelMon,fuelPrc,dayRate,nightRate,instCost,vBoilers};
 
 const openCalc=p=>{setActivePid(p.id);if(p.calcData){const d=p.calcData;
 if(d.calcMode)setCalcMode(d.calcMode);if(d.bizId)setBizId(d.bizId);
 if(d.climId)setClimId(d.climId);if(d.wsrcId)setWsrcId(d.wsrcId);if(d.customSrcT!==undefined)setCustomSrcT(d.customSrcT);
 if(d.opHRaw)setOpHRaw(d.opHRaw);if(d.utilRate)setUtilRate(d.utilRate);if(d.equipList)setEquipList(d.equipList);
-if(d.heatArea)setHeatArea(d.heatArea);if(d.heatRooms)setHeatRooms(d.heatRooms);if(d.customHeatW)setCustomHeatW(d.customHeatW);if(d.simCoef)setSimCoef(d.simCoef);
+if(d.heatArea)setHeatArea(d.heatArea);if(d.heatRoomCalc)setHeatRoomCalc(d.heatRoomCalc);if(d.heatRooms)setHeatRooms(d.heatRooms);if(d.customHeatW)setCustomHeatW(d.customHeatW);if(d.simCoef)setSimCoef(d.simCoef);
 if(d.hpTempRaw)setHpTempRaw(d.hpTempRaw);if(d.tankTypeId)setTankTypeId(d.tankTypeId);if(d.circTypeId)setCircTypeId(d.circTypeId);
 if(d.makerId)setMakerId(d.makerId);if(d.copWeight)setCopWeight(d.copWeight);if(d.contractPower)setContractPower(d.contractPower);if(d.maxDemand)setMaxDemand(d.maxDemand);if(d.existBoilerPower!==undefined)setExistBoilerPower(d.existBoilerPower||"");if(d.hpManual)setHpManual(d.hpManual);else setHpManual([]);
 if(d.existTank)setExistTank(d.existTank);if(d.newTankRaw)setNewTankRaw(d.newTankRaw);if(d.tankSpace)setTankSpace(d.tankSpace);
@@ -618,8 +624,8 @@ const loadSample=async()=>{
       calcMode:"both",bizId:"hotel",climId:"central",wsrcId:"tap",customSrcT:"",
       opHRaw:"16",utilRate:"60",
       equipList:[
-        {id:"s1",type:"bathtub",subtype:null,targetTemp:"42",count:"10",volume:"5",freq:"1",tempDrop:"2",volL:"300",freqDay:"1",people:"",perPerson:"0.05",showerRooms:"",showerPpRoom:"2",poolVol:"",cycleDays:"30",poolArea:"",poolLocation:"indoor",beds:"",litPerPerson:"80",weeksFreq:"3"},
-        {id:"s2",type:"shower",subtype:null,targetTemp:"42",count:"1",volume:"5",freq:"1",tempDrop:"2",volL:"300",freqDay:"1",people:"20",perPerson:"0.05",showerRooms:"10",showerPpRoom:"2",poolVol:"",cycleDays:"30",poolArea:"",poolLocation:"indoor",beds:"",litPerPerson:"80",weeksFreq:"3"},
+        {id:"s1",type:"bathtub",subtype:null,targetTemp:"42",count:"10",volume:"5",freq:"1",tempDrop:"2",volL:"200",freqDay:"1",people:"",perPerson:"0.04",showerRooms:"",showerPpRoom:"2",poolVol:"",cycleDays:"30",poolArea:"",poolLocation:"indoor",beds:"",litPerPerson:"80",weeksFreq:"3"},
+        {id:"s2",type:"shower",subtype:null,targetTemp:"42",count:"1",volume:"5",freq:"1",tempDrop:"2",volL:"200",freqDay:"1",people:"20",perPerson:"0.04",showerRooms:"10",showerPpRoom:"2",poolVol:"",cycleDays:"30",poolArea:"",poolLocation:"indoor",beds:"",litPerPerson:"80",weeksFreq:"3"},
       ],
       heatArea:"60",heatRooms:[],customHeatW:"",simCoef:"0.7",
       hpTempRaw:"60",tankTypeId:"4",circTypeId:"pension",
@@ -674,7 +680,7 @@ const BTN={border:"none",borderRadius:6,cursor:"pointer",fontFamily:"inherit",fo
 const RBOX={background:dark?"#1E3A5F":"#EFF6FF",border:`1px solid ${dark?"#2563EB":"#BFDBFE"}`,borderRadius:8,padding:"12px 14px"};
 const tog=k=>setOpenDet(p=>({...p,[k]:!p[k]}));
 const statBadge=sid=>{const s=STATUS_LIST.find(x=>x.id===sid);return s?{color:s.color,background:s.bg,border:`1px solid ${s.border}`,padding:"2px 9px",borderRadius:12,fontSize:12,fontWeight:600,whiteSpace:"nowrap"}:{};};
-const saveName=async n=>{setMyName(n);try{await window.storage.set("hp_myname",n);}catch{}setShowNameModal(false);};
+const saveName=n=>{setMyName(n);localStorage.setItem("hp_myname",n);setShowNameModal(false);};
 const filteredProjs=projects.filter(p=>{if(spFilter!=="all"&&p.status!==spFilter)return false;if(spFMgr&&!(p.manager||"").toLowerCase().includes(spFMgr.toLowerCase()))return false;if(spFSido&&p.sido!==spFSido)return false;if(spSearch&&!(p.name||"").toLowerCase().includes(spSearch.toLowerCase()))return false;return true;});
 const{srcT,hpTemp,hpt,hptTank,opH,heatW,sc,circCoef,copRaw,copRaw2,copWt,effCOP,effCOP2,utilR,repPeakH,hwBaseLoad,hwPeakLoad,dailyHeatWithLoss,monthlyHwHeat,equipDetails,htLoad,monthlyHtHeat,totalPeak,basicLoad,totalMonthly,existT,newT,enteredTank,tankMin,tankOpt,hpOpt,effTank,hpR,hpRec,isCDom,isBDom,isBalanced,nightR,tankAutoApplied,tankOptCalc,rawPeak,monthlyElec,elecCost,curCost,savings,payback,dailyHwOnly,dailyPoolOnly}=R;
 
@@ -706,7 +712,7 @@ return(
 <NI v={eq.tempDrop} s={v=>updateEquip(eq.id,"tempDrop",v)} ph="2" st={{...INP,width:60}} sfx="℃/일 수온강하"/>
 </>}
 {eq.type==="bathtub"&&<>
-<NI v={eq.volL} s={v=>updateEquip(eq.id,"volL",v)} ph="300" st={{...INP,width:68}} sfx="L/개"/>
+<NI v={eq.volL} s={v=>updateEquip(eq.id,"volL",v)} ph="200" st={{...INP,width:68}} sfx="L/개"/>
 <NI v={eq.freqDay} s={v=>updateEquip(eq.id,"freqDay",v)} ph="1" st={{...INP,width:55}} sfx="회/일"/>
 <NI v={eq.count} s={v=>updateEquip(eq.id,"count",v)} ph="1" st={{...INP,width:50}} sfx="개"/>
 <NI v={eq.targetTemp} s={v=>updateEquip(eq.id,"targetTemp",v)} ph="42" st={{...INP,width:55}} sfx="℃"/>
@@ -727,8 +733,8 @@ return(
 </div>
 <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
 <span style={{fontSize:12,color:C.sub,minWidth:90}}>1인당 온수량</span>
-<NI v={eq.perPerson} s={v=>updateEquip(eq.id,"perPerson",v)} ph="0.05" st={{...INP,width:68}} sfx="톤/인"/>
-<span style={{fontSize:11,color:C.sub}}>(기본 0.05톤 = 50L)</span>
+<NI v={eq.perPerson} s={v=>updateEquip(eq.id,"perPerson",v)} ph="0.04" st={{...INP,width:68}} sfx="톤/인"/>
+<span style={{fontSize:11,color:C.sub}}>(기본 0.04톤 = 40L)</span>
 </div>
 <div style={{display:"flex",alignItems:"center",gap:5}}>
 <span style={{fontSize:12,color:C.sub,minWidth:90}}>온수 목표온도</span>
