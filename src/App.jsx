@@ -408,6 +408,14 @@ if(hpR&&tankSpace==="yes"&&hptTank>0){
   }
 }
 
+// ── COP 2-pass 보정: 추천 모델의 실제 COP로 재산정 ──
+let effCOP2=effCOP;
+let copRaw2=copRaw;
+if(hpRec&&hpRec.model){
+  copRaw2=hpRec.model.cop;
+  effCOP2=copRaw2*copWt;
+}
+
 let nightR=null;
 if(elecType==="night"){
   const nm=nightModel;
@@ -443,14 +451,6 @@ const _spread=_mx>0?((Math.max(hpR?.condA||0,hpR?.condB||0,hpR?.condC||0)-Math.m
 const isBalanced=hpR?.mode==="general"&&_spread<5;
 const isCDom=!isBalanced&&hpR?.mode==="general"&&hpR.condC!=null&&hpR.condC>=hpR.condB&&hpR.condC>=hpR.condA;
 const isBDom=!isBalanced&&!isCDom&&hpR?.mode==="general"&&hpR.condB>hpR.condA;
-
-// ── COP 2-pass 보정: 추천 모델의 실제 COP로 effCOP 재산정 ──
-let effCOP2=effCOP;
-let copRaw2=copRaw;
-if(hpRec&&hpRec.model){
-  copRaw2=hpRec.model.cop;
-  effCOP2=copRaw2*copWt;
-}
 
 // ── 급탕·풀가온 분리 열량 (검증용) ──
 let dailyHwOnly=0, dailyPoolOnly=0;
