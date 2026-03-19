@@ -317,7 +317,7 @@ return()=>subscription.unsubscribe();
 },[]);
 // 로그인 후 데이터 로드
 useEffect(()=>{if(!user){setLoading(false);return;}(async()=>{await fetchProjects();await fetchHistory();await fetchMembers();setLoading(false);})();const iv=setInterval(()=>{fetchProjects();fetchHistory();},30000);return()=>clearInterval(iv);},[user]);
-const signInWithSlack=async()=>{await supabase.auth.signInWithOAuth({provider:'slack_oidc',options:{redirectTo:window.location.href}});};
+const signInWithSlack=async()=>{await supabase.auth.signInWithOAuth({provider:'slack_oidc',options:{redirectTo:window.location.href,queryParams:{team:"T096A6RTGTG"}}});};
 const signOut=async()=>{await supabase.auth.signOut();setProjects([]);setHistory([]);setMembers([]);};
 const logHistory=async(projectId,projectName,action)=>{try{await supabase.from("history").insert({project_id:String(projectId),project_name:projectName,editor:myName,editor_avatar:user?.user_metadata?.avatar_url||null,action});}catch{}};
 const saveOne=async(project)=>{
