@@ -425,7 +425,7 @@ const tankAutoApplied=tankSpace!=="no"&&enteredTank===0&&tankOptCalc>0;
 
 let hpR=null;
 if(totalPeak>0&&elecType==="general"){
-  const condA=(hwBaseLoad*1.25)+(htLoad*(calcMode==="both"?sc:1.0));
+  const condA=(hwBaseLoad*1.25)+htLoad;
   if(tankSpace==="no"){
     hpR={needed:totalPeak*1.1,condA,condB:null,condC:null,mode:"notank"};
   } else {
@@ -509,7 +509,7 @@ if(elecType==="night"){
     const dailyHwForNight=nightLoad==="heating"?0:dailyHeatWithLoss;
     const dailyHtForNight=nightLoad==="hotwater"?0:htLoad*opH;
     const dailyTotal=dailyHwForNight+dailyHtForNight;
-    const nightDT=nightLoad==="hotwater"?25:nightLoad==="heating"?20:30;
+    const nightDT=nightLoad==="hotwater"?20:nightLoad==="heating"?15:25;
     const nightHptTank=1.163*nightDT;
     const nightProduction=nightKwTotal*nOpH;
     const sufficient=nightProduction>=dailyTotal;
@@ -1204,7 +1204,7 @@ return(
         </div>)}
         <div style={{marginTop:4,textAlign:"center"}}><button onClick={()=>tog("hp_detail")} style={{...BTN,padding:"3px 10px",fontSize:11,background:"transparent",color:C.acc,border:`1px solid ${C.acc}`}}>{openDet.hp_detail?"▼ 산출 근거":"▶ 산출 근거"}</button></div>
         {openDet.hp_detail&&(<div style={{marginTop:6,padding:"8px 10px",background:dark?"#0F172A":"#F8FAFC",border:`1px dashed ${C.bd}`,borderRadius:5,fontSize:11.5,color:C.sub,lineHeight:1.8}}>
-          <div>A = 급탕기본부하({fmt(hwBaseLoad,1)})×1.25 + 난방부하적용({fmt(htLoad*(sc<1&&calcMode==="both"?sc:1),1)}) = <b>{fmt(hpR?.condA,1)} kW</b></div>
+          <div>A = 급탕기본부하({fmt(hwBaseLoad,1)})×1.25 + 난방부하({fmt(htLoad,1)}) = <b>{fmt(hpR?.condA,1)} kW</b></div>
           {hpR?.mode==="general"&&<><div>축열조 담당부하 = {fmt(effTank,1)}톤 × {fmt(hptTank,2)}kWh/톤 ÷ {fmt(repPeakH,1)}h = <b>{fmt(hpR.tankDR||0,1)} kW</b></div>
           <div>B = max(A, 총피크({fmt(totalPeak,1)}) - 축열조 담당부하({fmt(hpR.tankDR||0,1)})) = <b>{fmt(hpR?.condB,1)} kW</b></div>
           <div>C = max(B, 기본부하({fmt(basicLoad,1)}) + 사용열량÷재충전시간) = <b>{fmt(hpR?.condC,1)} kW</b></div></>}
