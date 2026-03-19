@@ -182,6 +182,7 @@ const[user,setUser]=useState(null);
 const[authLoading,setAuthLoading]=useState(true);
 const[history,setHistory]=useState([]);
 const[histSearch,setHistSearch]=useState("");
+const[members,setMembers]=useState([]);
 const[projects,setProjects]=useState([]);
 const[activePid,setActivePid]=useState(null);
 
@@ -299,22 +300,31 @@ try{const{data,error}=await supabase.from("projects").select("*").order("updated
 const fetchHistory=async()=>{
 try{const{data,error}=await supabase.from("history").select("*").order("created_at",{ascending:false}).limit(300);if(!error&&data)setHistory(data);}catch{}
 };
+const fetchMembers=async()=>{
+try{const{data,error}=await supabase.from("users").select("*").order("name");if(!error&&data)setMembers(data);}catch{}
+};
+const upsertUser=async(u)=>{
+if(!u)return;
+const pid=u.user_metadata?.provider_id||u.id;
+const name=u.user_metadata?.full_name||u.user_metadata?.name||(u.email?.split("@")[0])||"";
+try{await supabase.from("users").upsert({id:pid,name,email:u.email,avatar_url:u.user_metadata?.avatar_url||null,last_seen:new Date().toISOString()});}catch{}
+};
 // Auth 초기화
 useEffect(()=>{
-const{data:{subscription}}=supabase.auth.onAuthStateChange(async(_,session)=>{setUser(session?.user??null);setAuthLoading(false);});
-supabase.auth.getSession().then(({data:{session}})=>{setUser(session?.user??null);setAuthLoading(false);});
+const{data:{subscription}}=supabase.auth.onAuthStateChange(async(_,session)=>{setUser(session?.user??null);setAuthLoading(false);if(session?.user)upsertUser(session.user);});
+supabase.auth.getSession().then(({data:{session}})=>{setUser(session?.user??null);setAuthLoading(false);if(session?.user)upsertUser(session.user);});
 return()=>subscription.unsubscribe();
 },[]);
 // 로그인 후 데이터 로드
-useEffect(()=>{if(!user){setLoading(false);return;}(async()=>{await fetchProjects();await fetchHistory();setLoading(false);})();const iv=setInterval(()=>{fetchProjects();fetchHistory();},30000);return()=>clearInterval(iv);},[user]);
+useEffect(()=>{if(!user){setLoading(false);return;}(async()=>{await fetchProjects();await fetchHistory();await fetchMembers();setLoading(false);})();const iv=setInterval(()=>{fetchProjects();fetchHistory();},30000);return()=>clearInterval(iv);},[user]);
 const signInWithSlack=async()=>{await supabase.auth.signInWithOAuth({provider:'slack_oidc',options:{redirectTo:window.location.href}});};
-const signOut=async()=>{await supabase.auth.signOut();setProjects([]);setHistory([]);};
+const signOut=async()=>{await supabase.auth.signOut();setProjects([]);setHistory([]);setMembers([]);};
 const logHistory=async(projectId,projectName,action)=>{try{await supabase.from("history").insert({project_id:String(projectId),project_name:projectName,editor:myName,editor_avatar:user?.user_metadata?.avatar_url||null,action});}catch{}};
-const persist=async arr=>{
+const saveOne=async(project)=>{
 const editor=myName||"(미지정)";
-const updated=arr.map(p=>({...p,lastEditor:editor}));
-setProjects(updated);
-for(const p of updated){const{id,...rest}=p;try{await supabase.from("projects").upsert({id,data:{...p,lastEditor:editor},updated_at:new Date().toISOString()});}catch{}}
+const p={...project,lastEditor:editor};
+try{await supabase.from("projects").upsert({id:p.id,data:p,updated_at:new Date().toISOString()});}catch{}
+return p;
 };
 
 const clim=CLIMATE.find(c=>c.id===climId)||CLIMATE[1];
@@ -579,7 +589,7 @@ const vResults=useMemo(()=>{
 },[vBoilers,R]);
 
 // CRUD
-const saveSpProj=async()=>{if(!spForm.name.trim()){alert("프로젝트명 입력");return;}const isNew=!spEditId;const p={id:spEditId||Date.now().toString(),...spForm,name:spForm.name.trim(),updatedAt:new Date().toISOString(),calcData:null};const upd=spEditId?projects.map(x=>x.id===spEditId?{...x,...p,calcData:x.calcData}:x):[p,...projects];await persist(upd);await logHistory(p.id,p.name,isNew?"프로젝트 등록":"프로젝트 정보 수정");await fetchHistory();setSpEditId(null);setSpForm(EMPTY_FORM);};
+const saveSpProj=async()=>{if(!spForm.name.trim()){alert("프로젝트명 입력");return;}const isNew=!spEditId;const existing=spEditId?projects.find(x=>x.id===spEditId):null;const p={id:spEditId||Date.now().toString(),...spForm,name:spForm.name.trim(),updatedAt:new Date().toISOString(),calcData:existing?.calcData||null};const saved=await saveOne(p);setProjects(prev=>spEditId?prev.map(x=>x.id===spEditId?{...x,...saved}:x):[saved,...prev]);await logHistory(p.id,p.name,isNew?"프로젝트 등록":"프로젝트 정보 수정");await fetchHistory();setSpEditId(null);setSpForm(EMPTY_FORM);};
 const deleteProj=async id=>{if(!window.confirm("삭제?"))return;const dp=projects.find(x=>x.id===id);try{await supabase.from("projects").delete().eq("id",id);}catch{}setProjects(p=>p.filter(x=>x.id!==id));if(activePid===id)setActivePid(null);if(dp){await logHistory(id,dp.name,"프로젝트 삭제");await fetchHistory();}};
 
 const CALC_FIELDS={calcMode,bizId,climId,wsrcId,customSrcT,opHRaw,utilRate,equipList,heatArea,heatRoomCalc,customHeatW,simCoef,hpTempRaw,tankTypeId,circTypeId,makerId,copWeight,contractPower,maxDemand,existBoilerPower,hpManual,existTank,newTankRaw,tankSpace,elecType,nightLoad,nightContract,nightOpH,nightMakerId,nightModelId,fuelId,fuelUnit,fuelMon,fuelPrc,dayRate,nightRate,instCost,vBoilers};
@@ -599,7 +609,7 @@ if(d.dayRate)setDayRate(d.dayRate);if(d.nightRate)setNightRate(d.nightRate);if(d
 if(d.vBoilers)setVBoilers(d.vBoilers);else setVBoilers([]);
 }else{setVBoilers([]);}
 setTab("calc");};
-const saveCalc=async()=>{if(!activePid){alert("프로젝트 선택 필요");return;}const ap=projects.find(p=>p.id===activePid);await persist(projects.map(p=>p.id===activePid?{...p,calcData:CALC_FIELDS,updatedAt:new Date().toISOString()}:p));await logHistory(activePid,ap?.name||"",ap?.calcData?"용량산정 수정":"용량산정 저장");await fetchHistory();alert("저장 완료!");};
+const saveCalc=async()=>{if(!activePid){alert("프로젝트 선택 필요");return;}const ap=projects.find(p=>p.id===activePid);const updated={...ap,calcData:CALC_FIELDS,updatedAt:new Date().toISOString()};const saved=await saveOne(updated);setProjects(prev=>prev.map(p=>p.id===activePid?saved:p));await logHistory(activePid,ap?.name||"",ap?.calcData?"용량산정 수정":"용량산정 저장");await fetchHistory();alert("저장 완료!");};
 
 const roomCount=useMemo(()=>{
 const b=equipList.find(e=>e.type==="bathtub");
@@ -672,8 +682,8 @@ const loadSample=async()=>{
       }],
     }
   };
-  const arr=[sampleProj,...projects];
-  await persist(arr);
+  const saved=await saveOne(sampleProj);
+  setProjects(prev=>[saved,...prev]);
   await logHistory(sampleId,sampleProj.name,"샘플 프로젝트 로드");
   await fetchHistory();
   openCalc(sampleProj);
@@ -852,7 +862,7 @@ return(
 {tab==="status"&&(<>
   <div style={SEC}>
     <div style={SECH}>{spEditId?"✏️ 수정":"➕ 새 프로젝트"}</div>
-    <div style={ROW}><span style={LBL}>프로젝트명 *</span><input value={spForm.name} onChange={e=>setSpForm({...spForm,name:e.target.value})} placeholder="예) 파주 백학 리조트" style={{...IST,width:210}}/><span style={LBL}>담당자</span><select value={spForm.manager} onChange={e=>setSpForm({...spForm,manager:e.target.value})} style={{...SEL,width:110}}><option value="">선택</option>{MEMBERS.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
+    <div style={ROW}><span style={LBL}>프로젝트명 *</span><input value={spForm.name} onChange={e=>setSpForm({...spForm,name:e.target.value})} placeholder="예) 파주 백학 리조트" style={{...IST,width:210}}/><span style={LBL}>담당자</span><select value={spForm.manager} onChange={e=>setSpForm({...spForm,manager:e.target.value})} style={{...SEL,width:110}}><option value="">선택</option>{members.map(m=><option key={m.id} value={m.name}>{m.name}</option>)}</select></div>
     <div style={ROW}><span style={LBL}>진행상황</span><div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{STATUS_LIST.map(s=>(<button key={s.id} onClick={()=>setSpForm({...spForm,status:s.id})} style={{...BTN,padding:"5px 11px",fontSize:12,background:spForm.status===s.id?s.color:"transparent",color:spForm.status===s.id?"#fff":s.color,border:`1.5px solid ${s.color}`}}>{s.label}</button>))}</div></div>
     <div style={ROW}><span style={LBL}>시도</span><select value={spForm.sido} onChange={e=>setSpForm({...spForm,sido:e.target.value,sigungu:""})} style={{...SEL,width:120}}><option value="">선택</option>{Object.keys(SIDO_GU).map(s=><option key={s} value={s}>{s}</option>)}</select><span style={{fontSize:13,color:C.sub}}>시군구</span>{spForm.sido?(<select value={spForm.sigungu} onChange={e=>setSpForm({...spForm,sigungu:e.target.value})} style={{...SEL,width:130}}><option value="">선택</option>{(SIDO_GU[spForm.sido]||[]).map(s=><option key={s} value={s}>{s}</option>)}</select>):(<input value={spForm.sigungu} onChange={e=>setSpForm({...spForm,sigungu:e.target.value})} placeholder="직접입력" style={{...IST,width:120}}/>)}</div>
     <div style={ROW}><span style={LBL}>유통사</span><input value={spForm.distributor} onChange={e=>setSpForm({...spForm,distributor:e.target.value})} placeholder="(주)OO유통" style={{...IST,width:140}}/><span style={LBL}>설치업체</span><input value={spForm.installer} onChange={e=>setSpForm({...spForm,installer:e.target.value})} placeholder="OO설비" style={{...IST,width:140}}/></div>
@@ -868,7 +878,7 @@ return(
     <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>{STATUS_LIST.map(s=>{const cnt=projects.filter(p=>p.status===s.id).length;return(<div key={s.id} style={{padding:"3px 10px",borderRadius:16,background:s.bg,border:`1px solid ${s.border}`,fontSize:12}}><span style={{color:s.color,fontWeight:700}}>{s.label} {cnt}</span></div>);})}</div>
     <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}>
       <div style={{position:"relative",flex:"1 1 120px"}}><span style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",fontSize:13,color:C.sub,pointerEvents:"none"}}>🔍</span><input value={spSearch} onChange={e=>setSpSearch(e.target.value)} placeholder="프로젝트명 검색" style={{...IST,width:"100%",paddingLeft:28,boxSizing:"border-box"}}/></div>
-      <select value={spFMgr} onChange={e=>setSpFMgr(e.target.value)} style={{...SEL,width:100}}><option value="">담당자</option>{MEMBERS.map(m=><option key={m} value={m}>{m}</option>)}</select>
+      <select value={spFMgr} onChange={e=>setSpFMgr(e.target.value)} style={{...SEL,width:100}}><option value="">담당자</option>{members.map(m=><option key={m.id} value={m.name}>{m.name}</option>)}</select>
       <select value={spFSido} onChange={e=>setSpFSido(e.target.value)} style={{...SEL,width:100}}><option value="">지역</option>{Object.keys(SIDO_GU).map(s=><option key={s} value={s}>{s}</option>)}</select>
       <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{[["all","전체"],...STATUS_LIST.map(s=>[s.id,s.label])].map(([id,lbl])=>(<button key={id} onClick={()=>setSpFilter(id)} style={{...BTN,padding:"4px 8px",fontSize:11,fontWeight:spFilter===id?700:400,background:spFilter===id?C.acc:"transparent",color:spFilter===id?"#fff":C.sub,border:`1px solid ${spFilter===id?C.acc:C.bd}`}}>{lbl}</button>))}</div>
     </div>
