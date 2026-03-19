@@ -178,8 +178,10 @@ export default function App(){
 const[dark,setDark]=useState(false);
 const[tab,setTab]=useState("status");
 const[loading,setLoading]=useState(true);
-const[myName,setMyName]=useState("");
-const[showNameModal,setShowNameModal]=useState(false);
+const[user,setUser]=useState(null);
+const[authLoading,setAuthLoading]=useState(true);
+const[history,setHistory]=useState([]);
+const[histSearch,setHistSearch]=useState("");
 const[projects,setProjects]=useState([]);
 const[activePid,setActivePid]=useState(null);
 
@@ -238,6 +240,7 @@ const[dayRate,setDayRate]=useState("120");
 const[nightRate,setNightRate]=useState("56");
 const[instCost,setInstCost]=useState("");
 const[openDet,setOpenDet]=useState({});
+const myName=user?.user_metadata?.full_name||user?.user_metadata?.name||(user?.email?.split("@")[0])||"";
 
 // ─── 검증 탭 상태 ───
 const[vBoilers,setVBoilers]=useState([]);
@@ -293,7 +296,20 @@ const initMonths=(boilerId)=>{
 const fetchProjects=async()=>{
 try{const{data,error}=await supabase.from("projects").select("*").order("updated_at",{ascending:false});if(!error&&data)setProjects(data.map(r=>({...r.data,id:r.id})));}catch{}
 };
-useEffect(()=>{(async()=>{await fetchProjects();setLoading(false);if(!localStorage.getItem("hp_myname"))setShowNameModal(true);else setMyName(localStorage.getItem("hp_myname"));})();const iv=setInterval(fetchProjects,30000);return()=>clearInterval(iv);},[]);
+const fetchHistory=async()=>{
+try{const{data,error}=await supabase.from("history").select("*").order("created_at",{ascending:false}).limit(300);if(!error&&data)setHistory(data);}catch{}
+};
+// Auth 초기화
+useEffect(()=>{
+const{data:{subscription}}=supabase.auth.onAuthStateChange(async(_,session)=>{setUser(session?.user??null);setAuthLoading(false);});
+supabase.auth.getSession().then(({data:{session}})=>{setUser(session?.user??null);setAuthLoading(false);});
+return()=>subscription.unsubscribe();
+},[]);
+// 로그인 후 데이터 로드
+useEffect(()=>{if(!user){setLoading(false);return;}(async()=>{await fetchProjects();await fetchHistory();setLoading(false);})();const iv=setInterval(()=>{fetchProjects();fetchHistory();},30000);return()=>clearInterval(iv);},[user]);
+const signInWithSlack=async()=>{await supabase.auth.signInWithOAuth({provider:'slack_oidc',options:{redirectTo:window.location.href}});};
+const signOut=async()=>{await supabase.auth.signOut();setProjects([]);setHistory([]);};
+const logHistory=async(projectId,projectName,action)=>{try{await supabase.from("history").insert({project_id:String(projectId),project_name:projectName,editor:myName,editor_avatar:user?.user_metadata?.avatar_url||null,action});}catch{}};
 const persist=async arr=>{
 const editor=myName||"(미지정)";
 const updated=arr.map(p=>({...p,lastEditor:editor}));
@@ -563,8 +579,8 @@ const vResults=useMemo(()=>{
 },[vBoilers,R]);
 
 // CRUD
-const saveSpProj=async()=>{if(!spForm.name.trim()){alert("프로젝트명 입력");return;}const p={id:spEditId||Date.now().toString(),...spForm,name:spForm.name.trim(),updatedAt:new Date().toISOString(),calcData:null};const upd=spEditId?projects.map(x=>x.id===spEditId?{...x,...p,calcData:x.calcData}:x):[p,...projects];await persist(upd);setSpEditId(null);setSpForm(EMPTY_FORM);};
-const deleteProj=async id=>{if(!window.confirm("삭제?"))return;await persist(projects.filter(p=>p.id!==id));if(activePid===id)setActivePid(null);};
+const saveSpProj=async()=>{if(!spForm.name.trim()){alert("프로젝트명 입력");return;}const isNew=!spEditId;const p={id:spEditId||Date.now().toString(),...spForm,name:spForm.name.trim(),updatedAt:new Date().toISOString(),calcData:null};const upd=spEditId?projects.map(x=>x.id===spEditId?{...x,...p,calcData:x.calcData}:x):[p,...projects];await persist(upd);await logHistory(p.id,p.name,isNew?"프로젝트 등록":"프로젝트 정보 수정");await fetchHistory();setSpEditId(null);setSpForm(EMPTY_FORM);};
+const deleteProj=async id=>{if(!window.confirm("삭제?"))return;const dp=projects.find(x=>x.id===id);await persist(projects.filter(p=>p.id!==id));if(activePid===id)setActivePid(null);if(dp){await logHistory(id,dp.name,"프로젝트 삭제");await fetchHistory();}};
 
 const CALC_FIELDS={calcMode,bizId,climId,wsrcId,customSrcT,opHRaw,utilRate,equipList,heatArea,heatRoomCalc,customHeatW,simCoef,hpTempRaw,tankTypeId,circTypeId,makerId,copWeight,contractPower,maxDemand,existBoilerPower,hpManual,existTank,newTankRaw,tankSpace,elecType,nightLoad,nightContract,nightOpH,nightMakerId,nightModelId,fuelId,fuelUnit,fuelMon,fuelPrc,dayRate,nightRate,instCost,vBoilers};
 
@@ -583,7 +599,7 @@ if(d.dayRate)setDayRate(d.dayRate);if(d.nightRate)setNightRate(d.nightRate);if(d
 if(d.vBoilers)setVBoilers(d.vBoilers);else setVBoilers([]);
 }else{setVBoilers([]);}
 setTab("calc");};
-const saveCalc=async()=>{if(!activePid){alert("프로젝트 선택 필요");return;}await persist(projects.map(p=>p.id===activePid?{...p,calcData:CALC_FIELDS,updatedAt:new Date().toISOString()}:p));alert("저장 완료!");};
+const saveCalc=async()=>{if(!activePid){alert("프로젝트 선택 필요");return;}const ap=projects.find(p=>p.id===activePid);await persist(projects.map(p=>p.id===activePid?{...p,calcData:CALC_FIELDS,updatedAt:new Date().toISOString()}:p));await logHistory(activePid,ap?.name||"",ap?.calcData?"용량산정 수정":"용량산정 저장");await fetchHistory();alert("저장 완료!");};
 
 const roomCount=useMemo(()=>{
 const b=equipList.find(e=>e.type==="bathtub");
@@ -658,6 +674,8 @@ const loadSample=async()=>{
   };
   const arr=[sampleProj,...projects];
   await persist(arr);
+  await logHistory(sampleId,sampleProj.name,"샘플 프로젝트 로드");
+  await fetchHistory();
   openCalc(sampleProj);
 };
 
@@ -680,7 +698,7 @@ const BTN={border:"none",borderRadius:6,cursor:"pointer",fontFamily:"inherit",fo
 const RBOX={background:dark?"#1E3A5F":"#EFF6FF",border:`1px solid ${dark?"#2563EB":"#BFDBFE"}`,borderRadius:8,padding:"12px 14px"};
 const tog=k=>setOpenDet(p=>({...p,[k]:!p[k]}));
 const statBadge=sid=>{const s=STATUS_LIST.find(x=>x.id===sid);return s?{color:s.color,background:s.bg,border:`1px solid ${s.border}`,padding:"2px 9px",borderRadius:12,fontSize:12,fontWeight:600,whiteSpace:"nowrap"}:{};};
-const saveName=n=>{setMyName(n);localStorage.setItem("hp_myname",n);setShowNameModal(false);};
+
 const filteredProjs=projects.filter(p=>{if(spFilter!=="all"&&p.status!==spFilter)return false;if(spFMgr&&!(p.manager||"").toLowerCase().includes(spFMgr.toLowerCase()))return false;if(spFSido&&p.sido!==spFSido)return false;if(spSearch&&!(p.name||"").toLowerCase().includes(spSearch.toLowerCase()))return false;return true;});
 const{srcT,hpTemp,hpt,hptTank,opH,heatW,sc,circCoef,copRaw,copRaw2,copWt,effCOP,effCOP2,utilR,repPeakH,hwBaseLoad,hwPeakLoad,dailyHeatWithLoss,monthlyHwHeat,equipDetails,htLoad,monthlyHtHeat,totalPeak,basicLoad,totalMonthly,existT,newT,enteredTank,tankMin,tankOpt,hpOpt,effTank,hpR,hpRec,isCDom,isBDom,isBalanced,nightR,tankAutoApplied,tankOptCalc,rawPeak,monthlyElec,elecCost,curCost,savings,payback,dailyHwOnly,dailyPoolOnly}=R;
 
@@ -797,30 +815,29 @@ style={{...BTN,padding:"5px 10px",fontSize:12,background:C.hi,color:C.acc,border
 
 return(
   <div style={W}>
-    {showNameModal&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:C.card,borderRadius:14,padding:"28px 24px",maxWidth:360,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,.3)"}}>
-        <div style={{fontSize:16,fontWeight:700,color:C.pri,marginBottom:6}}>본인을 선택해주세요</div>
-        <div style={{fontSize:13,color:C.sub,marginBottom:16}}>팀원들이 누가 수정했는지 확인할 수 있습니다.</div>
-        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
-          {MEMBERS.map(m=>(<button key={m} onClick={()=>setMyName(m)} style={{...BTN,padding:"12px 16px",fontSize:15,background:myName===m?C.acc:"transparent",color:myName===m?"#fff":C.txt,border:`2px solid ${myName===m?C.acc:C.bd}`,borderRadius:8,textAlign:"left"}}>{m}</button>))}
-        </div>
-        <div style={{borderTop:`1px solid ${C.bd}`,paddingTop:12}}>
-          <input type="password" placeholder="비밀번호 입력" id="pw_input" style={{...IST,width:"100%",marginBottom:8,boxSizing:"border-box"}}
-            onKeyDown={e=>{if(e.key==="Enter"){const v=e.target.value;if(v==="ahekr12"&&myName){saveName(myName);}else{alert("비밀번호가 틀렸습니다.");}}}}/>
-          <button onClick={()=>{const v=document.getElementById("pw_input")?.value;if(v==="ahekr12"&&myName){saveName(myName);}else if(!myName){alert("이름을 선택해주세요.");}else{alert("비밀번호가 틀렸습니다.");}}} style={{...BTN,background:C.acc,color:"#fff",padding:"10px 0",width:"100%",fontSize:14}}>확인</button>
-        </div>
+    {authLoading&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:"#fff",fontSize:16,fontWeight:600}}>로딩 중...</div></div>}
+    {!authLoading&&!user&&<div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.92)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:C.card,borderRadius:18,padding:"40px 32px",maxWidth:380,width:"100%",boxShadow:"0 12px 48px rgba(0,0,0,.5)",textAlign:"center"}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.pri,marginBottom:8}}>히트펌프 용량 산정 시스템</div>
+        <div style={{fontSize:13,color:C.sub,marginBottom:32,lineHeight:1.6}}>팀원 전용 서비스입니다.<br/>Slack 계정으로 로그인해주세요.</div>
+        <button onClick={signInWithSlack} style={{...BTN,background:"#4A154B",color:"#fff",padding:"15px 24px",fontSize:15,width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:12,borderRadius:12}}>
+          <svg width="22" height="22" viewBox="0 0 54 54" fill="none"><path fill="#E01E5A" d="M19.7 30.5a5.3 5.3 0 1 1 0-10.6 5.3 5.3 0 0 1 0 10.6zm0-15.3a5.3 5.3 0 0 1-5.3-5.3V4.7a5.3 5.3 0 0 1 10.6 0v5.2a5.3 5.3 0 0 1-5.3 5.3z"/><path fill="#36C5F0" d="M30.5 19.7a5.3 5.3 0 1 1 10.6 0 5.3 5.3 0 0 1-10.6 0zm15.3 0a5.3 5.3 0 0 1 5.3-5.3h5.2a5.3 5.3 0 0 1 0 10.6h-5.2a5.3 5.3 0 0 1-5.3-5.3z"/><path fill="#2EB67D" d="M34.3 23.5a5.3 5.3 0 1 1 0 10.6 5.3 5.3 0 0 1 0-10.6zm0 15.3a5.3 5.3 0 0 1 5.3 5.3v5.2a5.3 5.3 0 0 1-10.6 0v-5.2a5.3 5.3 0 0 1 5.3-5.3z"/><path fill="#ECB22E" d="M23.5 34.3a5.3 5.3 0 1 1-10.6 0 5.3 5.3 0 0 1 10.6 0zm-15.3 0a5.3 5.3 0 0 1-5.3 5.3H2.7a5.3 5.3 0 0 1 0-10.6h5.2a5.3 5.3 0 0 1 5.3 5.3z"/></svg>
+          Slack으로 로그인
+        </button>
       </div>
     </div>}
 
     <div style={HDR}>
       <div><div style={{fontSize:15,fontWeight:700}}>히트펌프 용량 산정 시스템 v1.0 (2026.03.18)</div><div style={{fontSize:11,opacity:.75}}>히트펌프·축열조 산정 & 프로젝트 관리</div></div>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <span onClick={()=>setShowNameModal(true)} style={{fontSize:12,color:"rgba(255,255,255,.8)",cursor:"pointer",padding:"4px 8px",borderRadius:4,background:"rgba(255,255,255,.12)"}}>{myName||"이름 설정"}</span>
+        {user?.user_metadata?.avatar_url&&<img src={user.user_metadata.avatar_url} style={{width:26,height:26,borderRadius:"50%",objectFit:"cover",border:"2px solid rgba(255,255,255,.4)"}} alt=""/>}
+        <span style={{fontSize:12,color:"rgba(255,255,255,.9)",padding:"4px 8px",borderRadius:4,background:"rgba(255,255,255,.12)"}}>{myName||"(미지정)"}</span>
+        <button onClick={signOut} style={{...BTN,background:"rgba(255,255,255,.18)",color:"#fff",padding:"5px 10px",fontSize:12}}>로그아웃</button>
         <button onClick={()=>setDark(!dark)} style={{...BTN,background:"rgba(255,255,255,.18)",color:"#fff",padding:"5px 12px"}}>{dark?"☀":"🌙"}</button>
       </div>
     </div>
     <div style={TABS}>
-      {[["status","📊 현황"],["calc","📐 용량산정"],["verify","🔍 검증"],["econ","💰 경제성"]].map(([id,lbl])=>(
+      {[["status","📊 현황"],["calc","📐 용량산정"],["verify","🔍 검증"],["econ","💰 경제성"],["history","📜 기록"]].map(([id,lbl])=>(
         <button key={id} style={tb(tab===id)} onClick={()=>setTab(id)}>{lbl}</button>
       ))}
     </div>
@@ -1384,6 +1401,33 @@ return(
       </div>}
     </div>
   </>)}
+</>)}
+
+{/* ══ TAB 5: 작성 기록 ══ */}
+{tab==="history"&&(<>
+  <div style={SEC}>
+    <div style={{...SECH,justifyContent:"space-between"}}>
+      <span>📜 작성 기록</span>
+      <button onClick={fetchHistory} style={{...BTN,padding:"5px 12px",fontSize:12,background:C.hi,color:C.acc,border:`1px solid ${C.acc}`}}>새로고침</button>
+    </div>
+    <div style={{marginBottom:10}}>
+      <input value={histSearch} onChange={e=>setHistSearch(e.target.value)} placeholder="프로젝트명 또는 작성자 검색" style={{...IST,width:"100%",boxSizing:"border-box"}}/>
+    </div>
+    {(()=>{const filtered=history.filter(h=>!histSearch||(h.project_name||"").includes(histSearch)||(h.editor||"").includes(histSearch));
+    if(filtered.length===0)return<div style={{textAlign:"center",padding:"28px 0",color:C.sub}}>기록이 없습니다.</div>;
+    return filtered.map(h=>(
+      <div key={h.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",borderRadius:8,border:`1px solid ${C.bd}`,marginBottom:6,background:dark?"#1E293B":"#FAFBFF"}}>
+        {h.editor_avatar
+          ?<img src={h.editor_avatar} style={{width:30,height:30,borderRadius:"50%",objectFit:"cover",flexShrink:0}} alt=""/>
+          :<div style={{width:30,height:30,borderRadius:"50%",background:C.acc,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:700,flexShrink:0}}>{(h.editor||"?")[0]}</div>}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13.5,fontWeight:700,color:C.pri,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.project_name||"(프로젝트 없음)"}</div>
+          <div style={{fontSize:12,color:C.sub,marginTop:2}}><span style={{fontWeight:600,color:C.txt}}>{h.editor||"(미지정)"}</span> · {h.action}</div>
+        </div>
+        <div style={{fontSize:11,color:C.sub,flexShrink:0,textAlign:"right",lineHeight:1.4}}>{h.created_at?new Date(h.created_at).toLocaleString("ko-KR"):""}</div>
+      </div>
+    ));})()}
+  </div>
 </>)}
 
     </div>
