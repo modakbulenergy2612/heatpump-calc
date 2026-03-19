@@ -31,9 +31,9 @@ hospital: { label:"병원/요양 목욕",           subtypes:null },
 };
 
 const TANK_TYPES = [
-{ id:"2", label:"② 난방 직접 순환형", tankDT:20, hpTemp:55, available:true,  note:"난방 전용 현장" },
-{ id:"3", label:"③ 내부 코일형",     tankDT:20, hpTemp:60, available:true,  note:"난방+급탕 겸용" },
-{ id:"4", label:"④ 외부 열교환기형", tankDT:20, hpTemp:60, available:true,  note:"급탕 전용 또는 난방+급탕" },
+{ id:"2", label:"② 난방 직접 순환형", tankDT:15, hpTemp:55, available:true,  note:"난방 전용 현장" },
+{ id:"3", label:"③ 내부 코일형",     tankDT:15, hpTemp:60, available:true,  note:"난방+급탕 겸용" },
+{ id:"4", label:"④ 외부 열교환기형", tankDT:15, hpTemp:60, available:true,  note:"급탕 전용 또는 난방+급탕" },
 ];
 
 const CIRC_TYPES = [
@@ -224,6 +224,7 @@ const[contractPower,setContractPower]=useState("");
 const[maxDemand,setMaxDemand]=useState("");
 const[existBoilerPower,setExistBoilerPower]=useState("");
 const[copWeight,setCopWeight]=useState("0.9");
+const[customTankDT,setCustomTankDT]=useState("");
 const[existTank,setExistTank]=useState("");
 const[newTankRaw,setNewTankRaw]=useState("");
 const[tankSpace,setTankSpace]=useState("yes");
@@ -345,7 +346,7 @@ const srcT=parseFloat(customSrcT)||wsrc.getT(clim);
 const hpTemp=parseFloat(hpTempRaw)||tankType.hpTemp;
 const dT=hpTemp-srcT;
 const hpt=1.163*dT;
-const hptTank=1.163*tankType.tankDT;
+const hptTank=1.163*(parseFloat(customTankDT)||tankType.tankDT);
 const opH=parseFloat(opHRaw)||12;
 const heatW=parseFloat(customHeatW)||clim.heatW;
 const sc=parseFloat(simCoef)||1.0;
@@ -506,7 +507,7 @@ return{srcT,hpTemp,dT:hpTemp-srcT,hpt,hptTank,opH,heatW,sc,circCoef,copRaw,copRa
        hpR,hpRec,isCDom,isBDom,isBalanced,nightR,tankAutoApplied,tankOptCalc,rawPeak,
        monthlyElec,elecCost,curCost,savings,payback,
        dailyHwOnly,dailyPoolOnly};
-},[customSrcT,wsrc,clim,hpTempRaw,tankTypeId,circTypeId,opHRaw,bizId,customHeatW,simCoef,
+},[customSrcT,wsrc,clim,hpTempRaw,tankTypeId,customTankDT,circTypeId,opHRaw,bizId,customHeatW,simCoef,
 calcMode,equipList,heatArea,utilRate,existTank,newTankRaw,tankSpace,
 elecType,nightLoad,nightContract,nightOpH,nightModelId,nightMakerId,
 makerId,copWeight,contractPower,maxDemand,existBoilerPower,hpManual,fuelId,fuelMon,fuelPrc,dayRate,nightRate,instCost]);
@@ -591,14 +592,14 @@ const vResults=useMemo(()=>{
 const saveSpProj=async()=>{if(!spForm.name.trim()){alert("프로젝트명 입력");return;}const isNew=!spEditId;const existing=spEditId?projects.find(x=>x.id===spEditId):null;const p={id:spEditId||Date.now().toString(),...spForm,name:spForm.name.trim(),updatedAt:new Date().toISOString(),calcData:existing?.calcData||null};const saved=await saveOne(p);setProjects(prev=>spEditId?prev.map(x=>x.id===spEditId?{...x,...saved}:x):[saved,...prev]);await logHistory(p.id,p.name,isNew?"프로젝트 등록":"프로젝트 정보 수정");await fetchHistory();setSpEditId(null);setSpForm(EMPTY_FORM);};
 const deleteProj=async id=>{if(!window.confirm("삭제?"))return;const dp=projects.find(x=>x.id===id);try{await supabase.from("projects").delete().eq("id",id);}catch{}setProjects(p=>p.filter(x=>x.id!==id));if(activePid===id)setActivePid(null);if(dp){await logHistory(id,dp.name,"프로젝트 삭제");await fetchHistory();}};
 
-const CALC_FIELDS={calcMode,bizId,climId,wsrcId,customSrcT,opHRaw,utilRate,equipList,heatArea,heatRoomCalc,customHeatW,simCoef,hpTempRaw,tankTypeId,circTypeId,makerId,copWeight,contractPower,maxDemand,existBoilerPower,hpManual,existTank,newTankRaw,tankSpace,elecType,nightLoad,nightContract,nightOpH,nightMakerId,nightModelId,fuelId,fuelUnit,fuelMon,fuelPrc,dayRate,nightRate,instCost,vBoilers};
+const CALC_FIELDS={calcMode,bizId,climId,wsrcId,customSrcT,opHRaw,utilRate,equipList,heatArea,heatRoomCalc,customHeatW,simCoef,hpTempRaw,tankTypeId,customTankDT,circTypeId,makerId,copWeight,contractPower,maxDemand,existBoilerPower,hpManual,existTank,newTankRaw,tankSpace,elecType,nightLoad,nightContract,nightOpH,nightMakerId,nightModelId,fuelId,fuelUnit,fuelMon,fuelPrc,dayRate,nightRate,instCost,vBoilers};
 
 const openCalc=p=>{setActivePid(p.id);if(p.calcData){const d=p.calcData;
 if(d.calcMode)setCalcMode(d.calcMode);if(d.bizId)setBizId(d.bizId);
 if(d.climId)setClimId(d.climId);else if(p.sido&&SIDO_CLIMATE[p.sido])setClimId(SIDO_CLIMATE[p.sido]);else if(p.sido&&SIDO_CLIMATE[p.sido])setClimId(SIDO_CLIMATE[p.sido]);if(d.wsrcId)setWsrcId(d.wsrcId);if(d.customSrcT!==undefined)setCustomSrcT(d.customSrcT);
 if(d.opHRaw)setOpHRaw(d.opHRaw);if(d.utilRate)setUtilRate(d.utilRate);if(d.equipList)setEquipList(d.equipList);
 if(d.heatArea)setHeatArea(d.heatArea);if(d.heatRoomCalc)setHeatRoomCalc(d.heatRoomCalc);if(d.heatRooms)setHeatRooms(d.heatRooms);if(d.customHeatW)setCustomHeatW(d.customHeatW);if(d.simCoef)setSimCoef(d.simCoef);
-if(d.hpTempRaw)setHpTempRaw(d.hpTempRaw);if(d.tankTypeId)setTankTypeId(d.tankTypeId);if(d.circTypeId)setCircTypeId(d.circTypeId);
+if(d.hpTempRaw)setHpTempRaw(d.hpTempRaw);if(d.tankTypeId)setTankTypeId(d.tankTypeId);if(d.customTankDT!==undefined)setCustomTankDT(d.customTankDT||"");if(d.circTypeId)setCircTypeId(d.circTypeId);
 if(d.makerId)setMakerId(d.makerId);if(d.copWeight)setCopWeight(d.copWeight);if(d.contractPower)setContractPower(d.contractPower);if(d.maxDemand)setMaxDemand(d.maxDemand);if(d.existBoilerPower!==undefined)setExistBoilerPower(d.existBoilerPower||"");if(d.hpManual)setHpManual(d.hpManual);else setHpManual([]);
 if(d.existTank)setExistTank(d.existTank);if(d.newTankRaw)setNewTankRaw(d.newTankRaw);if(d.tankSpace)setTankSpace(d.tankSpace);
 if(d.elecType)setElecType(d.elecType);if(d.nightLoad)setNightLoad(d.nightLoad);if(d.nightContract)setNightContract(d.nightContract);
@@ -954,7 +955,12 @@ return(
         "3":"축열조 물은 난방 순환수. 급탕은 축열조 내부 코일을 통해 열교환하여 공급합니다.",
         "4":"축열조 물은 난방 순환수. 급탕은 외부 판형 열교환기를 통해 생산합니다. 위생적이며 급탕 전용·겸용 모두 적용 가능.",
       }[tankTypeId];return desc?(<div style={{marginTop:7,padding:"6px 10px",background:dark?"#1E293B":"#F0F4FF",border:`1px solid ${dark?"#3B4E6A":"#C7D2FE"}`,borderRadius:6,fontSize:12,color:dark?"#A5B4FC":"#4338CA"}}>{desc}</div>):null;})()}
-      <div style={{fontSize:11.5,color:C.sub,marginTop:5}}>축열조 ΔT = {TANK_TYPES.find(t=>t.id===tankTypeId)?.tankDT}℃ → 단위열량 {fmt(1.163*(TANK_TYPES.find(t=>t.id===tankTypeId)?.tankDT||20),2)} kWh/톤</div>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginTop:7,flexWrap:"wrap"}}>
+        <span style={{fontSize:12,color:C.sub}}>축열조 ΔT</span>
+        <NI v={customTankDT||(String(TANK_TYPES.find(t=>t.id===tankTypeId)?.tankDT||15))} s={setCustomTankDT} ph="15" st={{...INP,width:58}} sfx="℃"/>
+        {customTankDT&&<button onClick={()=>setCustomTankDT("")} style={{...BTN,fontSize:11,padding:"2px 6px",background:"#F3F4F6",color:C.sub,border:`1px solid ${C.bd}`}}>기본값</button>}
+        <span style={{fontSize:11.5,color:C.sub}}>→ 단위열량 {fmt(1.163*(parseFloat(customTankDT)||TANK_TYPES.find(t=>t.id===tankTypeId)?.tankDT||15),2)} kWh/톤</span>
+      </div>
     </div>
 
     {calcMode!=="heating"&&(<div style={{background:dark?"#1B2A1B":"#F0FDF4",border:`1px solid ${dark?"#166534":"#BBF7D0"}`,borderRadius:7,padding:"9px 12px",marginBottom:10}}>
@@ -1132,7 +1138,7 @@ return(
 
       {tankSpace==="yes"&&(<div style={RBOX}>
         <div style={{fontSize:12.5,fontWeight:700,color:C.pri,marginBottom:9}}>🪣 축열조</div>
-        <div style={{fontSize:12,color:C.sub,marginBottom:8}}>ΔT {tankType.tankDT}℃ → 단위열량 {fmt(hptTank,3)} kWh/톤  |  피크시간 {fmt(repPeakH,1)}h</div>
+        <div style={{fontSize:12,color:C.sub,marginBottom:8}}>ΔT {parseFloat(customTankDT)||tankType.tankDT}℃ → 단위열량 {fmt(hptTank,3)} kWh/톤  |  피크시간 {fmt(repPeakH,1)}h</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,textAlign:"center",marginBottom:10}}>
           <div style={{background:dark?"#064E3B":"#ECFDF5",border:`1px solid ${dark?"#065F46":"#A7F3D0"}`,borderRadius:7,padding:"9px 5px"}}><div style={{fontSize:11,color:C.sub}}>최소 축열조</div><div style={{fontSize:20,fontWeight:800,color:C.res}}>{fmt(tankMin,1)}<span style={{fontSize:11}}> 톤</span></div><div style={{fontSize:10,color:C.sub}}>HP 절감 시작점</div></div>
           <div style={{background:dark?"#1E3A5F":"#EFF6FF",border:`1px solid ${dark?"#2563EB":"#BFDBFE"}`,borderRadius:7,padding:"9px 5px"}}><div style={{fontSize:11,color:C.sub}}>최적 축열조</div><div style={{fontSize:20,fontWeight:800,color:C.acc}}>{tankOpt!=null?fmt(tankOpt,1):"—"}<span style={{fontSize:11}}> 톤</span></div><div style={{fontSize:10,color:C.sub}}>HP 최소화 지점</div></div>
