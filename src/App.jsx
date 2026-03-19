@@ -669,7 +669,7 @@ const CALC_FIELDS={calcMode,bizId,climId,wsrcId,customSrcT,opHRaw,utilRate,equip
 
 const openCalc=p=>{setActivePid(p.id);if(p.calcData){const d=p.calcData;
 if(d.calcMode)setCalcMode(d.calcMode);if(d.bizId)setBizId(d.bizId);
-if(d.climId)setClimId(d.climId);else if(p.sido&&SIDO_CLIMATE[p.sido])setClimId(SIDO_CLIMATE[p.sido]);else if(p.sido&&SIDO_CLIMATE[p.sido])setClimId(SIDO_CLIMATE[p.sido]);if(d.wsrcId)setWsrcId(d.wsrcId);if(d.customSrcT!==undefined)setCustomSrcT(d.customSrcT);
+if(d.climId)setClimId(d.climId);if(d.wsrcId)setWsrcId(d.wsrcId);if(d.customSrcT!==undefined)setCustomSrcT(d.customSrcT);
 if(d.opHRaw)setOpHRaw(d.opHRaw);if(d.utilRate)setUtilRate(d.utilRate);if(d.equipList)setEquipList(d.equipList);
 if(d.heatArea)setHeatArea(d.heatArea);if(d.heatRoomCalc)setHeatRoomCalc(d.heatRoomCalc);if(d.heatRooms)setHeatRooms(d.heatRooms);if(d.customHeatW)setCustomHeatW(d.customHeatW);if(d.customLoadFactor)setCustomLoadFactor(d.customLoadFactor);if(d.simCoef)setSimCoef(d.simCoef);
 if(d.hpTempRaw)setHpTempRaw(d.hpTempRaw);if(d.tankTypeId)setTankTypeId(d.tankTypeId);if(d.customTankDT!==undefined)setCustomTankDT(d.customTankDT||"");if(d.circTypeId)setCircTypeId(d.circTypeId);
