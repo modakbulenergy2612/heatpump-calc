@@ -257,11 +257,10 @@ const mkBoiler=()=>({
   monthlyData:Array.from({length:12},(_,i)=>({month:i+1,usage:"",cost:""})),
 });
 const BOILER_FUELS=[
-  {id:"lng",     label:"LNG(도시가스)", unit:"m³",  heat:10.55, defEff:88},
-  {id:"lpg",     label:"LPG",          unit:"kg",  heat:12.0,  defEff:85},
-  {id:"kerosene",label:"등유",          unit:"L",   heat:9.1,   defEff:82},
-  {id:"diesel",  label:"경유",          unit:"L",   heat:8.4,   defEff:82},
-  {id:"electric",label:"전기보일러",    unit:"kWh", heat:1.0,   defEff:95},
+  {id:"lng",     label:"LNG(도시가스)", unit:"MJ",  heat:0.2778, defEff:95},
+  {id:"lpg",     label:"LPG",          unit:"kg",  heat:12.8837, defEff:92},
+  {id:"kerosene",label:"등유",          unit:"L",   heat:9.3838, defEff:85},
+  {id:"electric",label:"전기보일러",    unit:"kWh", heat:1.0,   defEff:100},
 ];
 const BOILER_PURPOSES=[
   {id:"hotwater",         label:"급탕 전용"},
