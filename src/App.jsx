@@ -903,9 +903,9 @@ return(
     </div>}
 
     <div style={HDR}>
-      <div style={{display:"flex",alignItems:"center",gap:12}}><div><div style={{fontSize:14,fontWeight:700}}>히트펌프 용량 산정 시스템 v1.1 (2026.03.19)</div><div style={{fontSize:10,opacity:.7}}>v1.0 (2026.03.18)</div></div></div>
+      <div style={{display:"flex",alignItems:"center",gap:12}}><div><div style={{fontSize:14,fontWeight:700}}>히트펌프 용량 산정 시스템 v1.1 (2026.03.19)</div></div></div>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <img src="/logo.png" style={{height:24,objectFit:"contain",background:"#fff",borderRadius:6,padding:"2px 6px",marginRight:4}}/>{user?.user_metadata?.avatar_url&&<img src={user.user_metadata.avatar_url} style={{width:26,height:26,borderRadius:"50%",objectFit:"cover",border:"2px solid rgba(255,255,255,.4)"}} alt=""/>}
+        {user?.user_metadata?.avatar_url&&<img src={user.user_metadata.avatar_url} style={{width:26,height:26,borderRadius:"50%",objectFit:"cover",border:"2px solid rgba(255,255,255,.4)"}} alt=""/>}
         <span style={{fontSize:12,color:"rgba(255,255,255,.9)",padding:"4px 8px",borderRadius:4,background:"rgba(255,255,255,.12)"}}>{myName||"(미지정)"}</span>
         <button onClick={signOut} style={{...BTN,background:"rgba(255,255,255,.18)",color:"#fff",padding:"5px 10px",fontSize:12}}>로그아웃</button>
         <button onClick={()=>setDark(!dark)} style={{...BTN,background:"rgba(255,255,255,.18)",color:"#fff",padding:"5px 12px"}}>{dark?"☀":"🌙"}</button>
@@ -915,6 +915,9 @@ return(
       {[["status","📊 현황"],["calc","📐 용량산정"],["verify","🔍 검증"],["econ","💰 경제성"],["history","📜 기록"]].map(([id,lbl])=>(
         <button key={id} style={tb(tab===id)} onClick={()=>setTab(id)}>{lbl}</button>
       ))}
+      <div style={{marginLeft:"auto",display:"flex",alignItems:"center",padding:"0 8px"}}>
+        <img src="/logo.png" style={{height:32,objectFit:"contain"}}/>
+      </div>
     </div>
     <div style={CONT}>
 {/* 공통 저장 바 */}
