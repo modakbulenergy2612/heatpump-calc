@@ -2,6 +2,10 @@ import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 
 
+// ═══════════════════════ 버전 ═══════════════════════
+const APP_VERSION = "v1.4";
+const APP_DATE = "2026.03.21";
+
 // ═══════════════════════ 상수 ═══════════════════════
 
 const CLIMATE = [
@@ -20,6 +24,7 @@ const BIZ = [
 { id:"hotel",   label:"숙박업소",     defEquip:["bathtub","shower"], addEquip:["tang","pool"],         defCirc:"hotel",   opH:16, defSimCoef:0.7, defUtil:60 },
 { id:"pool",    label:"수영장",       defEquip:["pool","shower"],    addEquip:["tang","bathtub"],      defCirc:"pension", opH:14, defSimCoef:0.8, defUtil:80 },
 { id:"hospital",label:"병원/요양원",  defEquip:["hospital","shower"],addEquip:["tang","bathtub"],      defCirc:"hospital",opH:20, defSimCoef:0.9, defUtil:90 },
+{ id:"house",   label:"단독주택",     defEquip:["shower"],           addEquip:["bathtub","tang"],      defCirc:"small",   opH:10, defSimCoef:1.0, defUtil:100 },
 ];
 
 const EQUIP_DEFS = {
@@ -53,6 +58,8 @@ const HP_MAKERS = [
 { id:"samsung", label:"삼성전자",  available:false, note:"데이터 미확보" },
 ];
 const HP_MODELS = [
+{ id:"lg9",    maker:"lg",   label:"9kW",    kw:9,    cop:3.59, maxPower:4.6,  phase:"single" },
+{ id:"lg12",   maker:"lg",   label:"12kW",   kw:12,   cop:3.93, maxPower:6.6,  phase:"single" },
 { id:"lg16",   maker:"lg",   label:"16kW",   kw:16,   cop:3.72, maxPower:6.93  },
 { id:"lg25",   maker:"lg",   label:"25kW",   kw:25,   cop:2.53, maxPower:13.1  },
 { id:"lg35",   maker:"lg",   label:"35kW",   kw:35,   cop:2.40, maxPower:21    },
@@ -770,7 +777,7 @@ const C=dark?{bg:"#0A1510",card:"#132A1E",bd:"#1D4030",txt:"#E8F0E8",sub:"#8FA88
 :{bg:"#F2F7F4",card:"#FFFFFF",bd:"#C8D8CC",txt:"#1A1A1A",sub:"#5A6B5E",pri:"#0F4A30",acc:"#2E7A4A",res:"#006600",warn:"#D4920A",err:"#C00000",inp:"#F8FBF8",inpB:"#B0C8B4",hi:"#E8F2EC"};
 const W={fontFamily:"'Pretendard','맑은 고딕',sans-serif",background:C.bg,minHeight:"100vh",paddingBottom:60};
 const HDR={background:dark?"#0D1F15":"#0F4A30",color:"#fff",padding:"10px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 8px rgba(0,0,0,.3)"};
-const TABS={display:"flex",background:C.card,borderBottom:`1px solid ${C.bd}`,padding:"0 14px",gap:2,overflowX:"auto"};
+const TABS={display:"flex",background:C.card,borderBottom:`1px solid ${C.bd}`,padding:"0 14px",gap:2,overflowX:"auto",position:"sticky",top:42,zIndex:99,boxShadow:"0 1px 4px rgba(0,0,0,.08)"};
 const tb=a=>({padding:"11px 16px",fontSize:13.5,fontWeight:a?700:500,color:a?C.acc:C.sub,background:"none",border:"none",borderBottom:a?`2.5px solid ${C.acc}`:`2.5px solid transparent`,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"});
 const CONT={maxWidth:760,margin:"0 auto",padding:"14px 12px",width:"100%",boxSizing:"border-box"};
 const SEC={background:C.card,borderRadius:10,padding:"16px 18px",marginBottom:12,border:`1px solid ${C.bd}`};
@@ -904,7 +911,7 @@ return(
     {authLoading&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:"#fff",fontSize:16,fontWeight:600}}>로딩 중...</div></div>}
     {!authLoading&&!user&&<div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.92)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{background:C.card,borderRadius:18,padding:"40px 32px",maxWidth:380,width:"100%",boxShadow:"0 12px 48px rgba(0,0,0,.5)",textAlign:"center"}}>
-        <div style={{fontSize:22,fontWeight:800,color:C.pri,marginBottom:8}}>히트펌프 용량 산정 시스템 v1.1 (2026.03.19)</div>
+        <div style={{fontSize:22,fontWeight:800,color:C.pri,marginBottom:8}}>히트펌프 용량 산정 시스템 {APP_VERSION} ({APP_DATE})</div>
         <div style={{fontSize:13,color:C.sub,marginBottom:32,lineHeight:1.6}}>팀원 전용 서비스입니다.<br/>Slack 계정으로 로그인해주세요.</div>
         <button onClick={signInWithSlack} style={{...BTN,background:"#4A154B",color:"#fff",padding:"15px 24px",fontSize:15,width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:12,borderRadius:12}}>
           <svg width="22" height="22" viewBox="0 0 54 54" fill="none"><path fill="#E01E5A" d="M19.7 30.5a5.3 5.3 0 1 1 0-10.6 5.3 5.3 0 0 1 0 10.6zm0-15.3a5.3 5.3 0 0 1-5.3-5.3V4.7a5.3 5.3 0 0 1 10.6 0v5.2a5.3 5.3 0 0 1-5.3 5.3z"/><path fill="#36C5F0" d="M30.5 19.7a5.3 5.3 0 1 1 10.6 0 5.3 5.3 0 0 1-10.6 0zm15.3 0a5.3 5.3 0 0 1 5.3-5.3h5.2a5.3 5.3 0 0 1 0 10.6h-5.2a5.3 5.3 0 0 1-5.3-5.3z"/><path fill="#2EB67D" d="M34.3 23.5a5.3 5.3 0 1 1 0 10.6 5.3 5.3 0 0 1 0-10.6zm0 15.3a5.3 5.3 0 0 1 5.3 5.3v5.2a5.3 5.3 0 0 1-10.6 0v-5.2a5.3 5.3 0 0 1 5.3-5.3z"/><path fill="#ECB22E" d="M23.5 34.3a5.3 5.3 0 1 1-10.6 0 5.3 5.3 0 0 1 10.6 0zm-15.3 0a5.3 5.3 0 0 1-5.3 5.3H2.7a5.3 5.3 0 0 1 0-10.6h5.2a5.3 5.3 0 0 1 5.3 5.3z"/></svg>
@@ -914,7 +921,7 @@ return(
     </div>}
 
     <div style={HDR}>
-      <div style={{display:"flex",alignItems:"center",gap:12}}><div><div style={{fontSize:14,fontWeight:700}}>히트펌프 용량 산정 시스템 v1.1 (2026.03.19)</div></div></div>
+      <div style={{display:"flex",alignItems:"center",gap:12}}><div><div style={{fontSize:14,fontWeight:700}}>히트펌프 용량 산정 시스템 {APP_VERSION} ({APP_DATE})</div></div></div>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         {user?.user_metadata?.avatar_url&&<img src={user.user_metadata.avatar_url} style={{width:26,height:26,borderRadius:"50%",objectFit:"cover",border:"2px solid rgba(255,255,255,.4)"}} alt=""/>}
         <span style={{fontSize:12,color:"rgba(255,255,255,.9)",padding:"4px 8px",borderRadius:4,background:"rgba(255,255,255,.12)"}}>{myName||"(미지정)"}</span>
@@ -923,7 +930,7 @@ return(
       </div>
     </div>
     <div style={TABS}>
-      {[["status","📊 현황"],["calc","📐 용량산정"],["verify","🔍 검증"],["econ","💰 경제성"],["history","📜 기록"]].map(([id,lbl])=>(
+      {[["status","📊 현황"],["calc","📐 용량산정"],["verify","🔍 검증"],["econ","💰 경제성(개발 중)"],["history","📜 기록"]].map(([id,lbl])=>(
         <button key={id} style={tb(tab===id)} onClick={()=>setTab(id)}>{lbl}</button>
       ))}
       <div style={{marginLeft:"auto",display:"flex",alignItems:"center",padding:"0 8px"}}>
@@ -932,7 +939,7 @@ return(
     </div>
     <div style={CONT}>
 {/* 공통 저장 바 */}
-{tab!=="status"&&activePid&&(<div style={{background:C.card,border:`1px solid ${C.bd}`,borderRadius:8,padding:"8px 14px",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:52,zIndex:50,boxShadow:"0 1px 4px rgba(0,0,0,.1)"}}>
+{tab!=="status"&&activePid&&(<div style={{background:C.card,border:`1px solid ${C.bd}`,borderRadius:8,padding:"8px 14px",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:87,zIndex:48,boxShadow:"0 1px 4px rgba(0,0,0,.1)"}}>
   <span style={{fontSize:12.5,color:C.res,fontWeight:600}}>📂 {activeProj?.name}</span>
   <button onClick={saveCalc} style={{...BTN,background:C.acc,color:"#fff",padding:"6px 14px",fontSize:12.5}}>💾 저장</button>
 </div>)}
@@ -1071,7 +1078,7 @@ return(
           {HP_MAKERS.map(m=>(<button key={m.id} onClick={()=>{if(!m.available)return;setMakerId(m.id);}} style={{...BTN,padding:"5px 11px",fontSize:12.5,background:makerId===m.id?C.acc:"transparent",color:m.available?(makerId===m.id?"#fff":C.sub):"#CBD5E0",border:`1.5px solid ${makerId===m.id?C.acc:C.bd}`,cursor:m.available?"pointer":"not-allowed"}}>{m.label}{!m.available&&<span style={{fontSize:10,display:"block",opacity:.7}}>{m.note}</span>}</button>))}
         </div>
       </div>
-      {hpModelLargest&&<div style={{fontSize:12,color:C.sub,marginBottom:6}}>사용 모델: {hpModelLargest.label} (COP {hpModelLargest.cop} / 최대소비 {hpModelLargest.maxPower}kW) — 필요 용량에 따라 대수 자동 산출</div>}
+      {hpModelLargest&&<div style={{fontSize:12,color:C.sub,marginBottom:6}}>사용 모델: {hpModelLargest.label}{hpModelLargest.phase==="single"?" [단상]":""} (COP {hpModelLargest.cop} / 최대소비 {hpModelLargest.maxPower}kW) — 필요 용량에 따라 대수 자동 산출</div>}
       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8}}>
         <span style={{fontSize:12,color:C.sub}}>COP 가중치:</span>
         <select value={copWeight} onChange={e=>setCopWeight(e.target.value)} style={{...SEL,width:160}}>{COP_WEIGHTS.map(w=>(<option key={w.v} value={w.v}>{w.label}</option>))}</select>
@@ -1110,7 +1117,7 @@ return(
         {HP_MAKERS.filter(m=>m.available).map(m=>(<button key={m.id} onClick={()=>{setNightMakerId(m.id);const first=HP_MODELS.find(x=>x.maker===m.id);if(first)setNightModelId(first.id);}} style={{...BTN,padding:"4px 10px",fontSize:12,background:nightMakerId===m.id?(dark?"#1A7A7A":"#1A7A7A"):"transparent",color:nightMakerId===m.id?"#fff":(dark?"#7ABFBF":"#1A7A7A"),border:`1px solid ${dark?"#1A7A7A":"#A0D4D4"}`}}>{m.label}</button>))}
       </div>
       <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-        {nightAvailableModels.map(m=>{const contract=parseFloat(nightContract)||0;const ok=contract===0||m.maxPower<=contract;return(<button key={m.id} onClick={()=>{if(!ok)return;setNightModelId(m.id);}} style={{...BTN,padding:"4px 10px",fontSize:12,background:nightModelId===m.id?(dark?"#1A7A7A":"#1A7A7A"):"transparent",color:nightModelId===m.id?"#fff":ok?(dark?"#7ABFBF":"#1A7A7A"):"#CBD5E0",border:`1px solid ${dark?"#1A7A7A":"#A0D4D4"}`,cursor:ok?"pointer":"not-allowed"}}>{m.label}<span style={{fontSize:10,display:"block"}}>{m.kw}kW / {m.maxPower}kW 소비{!ok&&" ❌"}</span></button>);})}
+        {nightAvailableModels.map(m=>{const contract=parseFloat(nightContract)||0;const ok=contract===0||m.maxPower<=contract;return(<button key={m.id} onClick={()=>{if(!ok)return;setNightModelId(m.id);}} style={{...BTN,padding:"4px 10px",fontSize:12,background:nightModelId===m.id?(dark?"#1A7A7A":"#1A7A7A"):"transparent",color:nightModelId===m.id?"#fff":ok?(dark?"#7ABFBF":"#1A7A7A"):"#CBD5E0",border:`1px solid ${dark?"#1A7A7A":"#A0D4D4"}`,cursor:ok?"pointer":"not-allowed"}}>{m.label}{m.phase==="single"?" [단상]":""}<span style={{fontSize:10,display:"block"}}>{m.kw}kW / {m.maxPower}kW 소비{!ok&&" ❌"}</span></button>);})}
       </div>
     </div>)}
 
@@ -1162,7 +1169,52 @@ return(
   </div>
 
   {(htLoad>0||hwBaseLoad>0)&&(<div style={SEC}>
-    <div style={SECH}>STEP 4. 산정 결과</div>
+    <div style={{...SECH,justifyContent:"space-between"}}>
+      <span>STEP 4. 산정 결과</span>
+      <button onClick={()=>{
+        const pName=activeProj?.name||"(프로젝트 미선택)";
+        const lines=[`[${pName}] 용량 산정 결과`,`작성: ${myName} / ${new Date().toLocaleString("ko-KR")}`,`───────────────────`];
+        lines.push(`분석범위: ${calcMode==="both"?"난방+급탕":calcMode==="heating"?"난방 전용":"급탕 전용"}`);
+        lines.push(`기후대: ${clim.label} (${clim.desc}) / 열원: ${WSRC.find(w=>w.id===wsrcId)?.label} ${srcT}℃`);
+        lines.push(`운영시간: ${opH}h/일 / 이용률: ${utilRate}%`);
+        if(calcMode!=="heating"){
+          lines.push(`\n── 급탕 ──`);
+          lines.push(`일일 급탕열량: ${fmt(dailyHeatWithLoss,1)} kWh/일`);
+          lines.push(`급탕 기본부하: ${fmt(hwBaseLoad,1)} kW / 피크부하: ${fmt(hwPeakLoad,1)} kW`);
+          lines.push(`순환손실계수: ×${circCoef}`);
+        }
+        if(calcMode!=="hotwater"){
+          lines.push(`\n── 난방 ──`);
+          lines.push(`난방면적: ${heatArea||0}평 (${fmt((parseFloat(heatArea)||0)*3.3,0)}m²)`);
+          lines.push(`난방부하: ${fmt(htLoad,1)} kW / 기준: ${heatW}W/평`);
+        }
+        if(calcMode==="both"&&parseFloat(simCoef)<1) lines.push(`\n동시사용계수: ×${simCoef} → 총 피크: ${fmt(totalPeak,1)} kW`);
+        if(elecType==="general"&&hpR){
+          lines.push(`\n── 히트펌프 (일반전기) ──`);
+          lines.push(`적용 COP: ${fmt(effCOP2,2)} (${copRaw2}×${copWt})`);
+          lines.push(`필요 HP 용량: ${fmt(hpR.needed,1)} kW`);
+          if(hpR.mode==="general") lines.push(`조건A: ${fmt(hpR.condA,1)}kW / 조건B: ${fmt(hpR.condB,1)}kW / 조건C: ${fmt(hpR.condC,1)}kW`);
+          if(hpRec) lines.push(`${hpRec.isManual?"수동":"추천"} 구성: ${hpRec.rows.map(r=>`${r.model.label}×${r.units}`).join(" + ")} = ${fmt(hpRec.totalKw,1)}kW (${hpRec.totalUnits}대)`);
+          if(hpRec&&!hpRec.noContract) lines.push(`계약전력 증설: ${hpRec.augment>0?`+${fmt(hpRec.augment,1)}kW 필요`:"불필요"}`);
+        }
+        if(elecType==="general"&&tankSpace==="yes"){
+          lines.push(`\n── 축열조 ──`);
+          lines.push(`최소: ${fmt(tankMin,1)}톤 / 최적: ${tankOpt!=null?fmt(tankOpt,1):"—"}톤`);
+          lines.push(`적용: ${tankAutoApplied?`최적 ${fmt(tankOptCalc,1)}톤 자동`:`${fmt(effTank,1)}톤`}`);
+        }
+        if(elecType==="night"&&nightR){
+          lines.push(`\n── 히트펌프 (심야전기) ──`);
+          lines.push(`${nightR.nm.label} × ${nightR.nightUnits}대 = ${fmt(nightR.nightKwTotal,1)}kW`);
+          lines.push(`심야 생산: ${fmt(nightR.nightProduction,1)} kWh / 일일 필요: ${fmt(nightR.dailyTotal,1)} kWh`);
+          lines.push(`축열조: ${fmt(nightR.nightTank,1)}톤`);
+        }
+        lines.push(`\n── 경제성 ──`);
+        lines.push(`월 총열부하: ${fmt0(totalMonthly)} kWh / 월 전력소비: ${fmt0(monthlyElec)} kWh`);
+        lines.push(`HP 월 운영비: ${fmt0(elecCost)}원`);
+        if(curCost>0){lines.push(`현재 연료비: ${fmt0(curCost)}원 / 월 절감: ${fmt0(savings)}원`);if(payback)lines.push(`투자회수: ${payback.toFixed(1)}년`);}
+        navigator.clipboard.writeText(lines.join("\n")).then(()=>alert("결과가 클립보드에 복사되었습니다.")).catch(()=>{const ta=document.createElement("textarea");ta.value=lines.join("\n");document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);alert("결과가 클립보드에 복사되었습니다.");});
+      }} style={{...BTN,padding:"5px 12px",fontSize:12,background:C.hi,color:C.acc,border:`1px solid ${C.acc}`}}>📋 결과 복사</button>
+    </div>
     {calcMode==="both"&&totalPeak>0&&(<div style={{...RBOX,marginBottom:10}}>
       <div style={{fontSize:12.5,fontWeight:700,color:C.pri,marginBottom:7}}>총 피크부하</div>
       <div style={{display:"grid",gridTemplateColumns:parseFloat(simCoef)<1?"repeat(4,1fr)":"repeat(3,1fr)",gap:8,textAlign:"center"}}>
@@ -1198,7 +1250,7 @@ return(
           {hpManual.map(r=>(<div key={r.id} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
             <select value={r.modelId} onChange={e=>updateHpRow(r.id,"modelId",e.target.value)} style={{...INP,width:145,cursor:"pointer"}}>
               <option value="">모델 선택</option>
-              {HP_MODELS.filter(m=>m.maker===makerId).map(m=><option key={m.id} value={m.id}>{m.label} (COP {m.cop})</option>)}
+              {HP_MODELS.filter(m=>m.maker===makerId).map(m=><option key={m.id} value={m.id}>{m.label} (COP {m.cop}){m.phase==="single"?" [단상]":""}</option>)}
             </select>
             <NI v={r.units} s={v=>updateHpRow(r.id,"units",v)} ph="1" st={{...INP,width:50}} sfx="대"/>
             <button onClick={()=>removeHpRow(r.id)} style={{...BTN,padding:"3px 7px",fontSize:11,background:"#FFF5F5",color:C.err,border:"1px solid #FCA5A5"}}>✕</button>
@@ -1350,7 +1402,10 @@ return(
                   return md.length>0?{...bl,monthlyData:md}:bl;
                 }));
               }}>
-              <div style={{fontSize:11,color:C.sub,marginBottom:4,padding:"4px 8px",background:dark?"#1E293B":"#F8FAFC",borderRadius:4}}>💡 파워플래너 표를 선택 후 Ctrl+V로 붙여넣기 가능 (연월·계약전력·사용전력량·사용일수·전기요금)</div>
+              <div style={{padding:"10px 12px",marginBottom:8,background:dark?"#1B2A1B":"#F0FDF4",border:`2px dashed ${dark?"#2E7A4A":"#86EFAC"}`,borderRadius:8,cursor:"text"}}>
+                <div style={{fontSize:12.5,fontWeight:700,color:dark?"#86EFAC":"#006600",marginBottom:4}}>📋 파워플래너 붙여넣기 영역</div>
+                <div style={{fontSize:11.5,color:dark?"#86EFAC":"#006600",lineHeight:1.6}}>파워플래너에서 아래 표 범위(연월 ~ 전기요금)를 드래그 선택 후 <b>Ctrl+V</b>로 붙여넣으면 5개 열이 한번에 입력됩니다.<br/>→ <b>연월 · 계약전력 · 사용전력량 · 사용일수 · 전기요금</b> 순서로 자동 매핑</div>
+              </div>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
                   <tr style={{background:dark?"#1E293B":"#EFF6FF"}}>
