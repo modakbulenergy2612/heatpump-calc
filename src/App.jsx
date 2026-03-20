@@ -511,19 +511,22 @@ if(elecType==="night"){
   if(nm){
     const nOpH=parseFloat(nightOpH)||8;
     const nContract=parseFloat(nightContract)||0;
-    const maxUnits=nContract>0?Math.floor(nContract/nm.maxPower):1;
-    const nightUnits=Math.max(1,maxUnits);
-    const nightKwTotal=nm.kw*nightUnits;
     const dailyHwForNight=nightLoad==="heating"?0:dailyHeatWithLoss;
-    const dailyHtForNight=nightLoad==="hotwater"?0:htLoad*opH;
+    const dailyHtForNight=nightLoad==="hotwater"?0:htLoad*opH*loadFactor;
     const dailyTotal=dailyHwForNight+dailyHtForNight;
+    const neededKw=nOpH>0?dailyTotal/nOpH:0;
+    const neededUnits=Math.max(1,Math.ceil(neededKw/nm.kw));
+    const maxUnits=nContract>0?Math.floor(nContract/nm.maxPower):neededUnits;
+    const contractOk=neededUnits<=maxUnits;
+    const nightUnits=contractOk?neededUnits:maxUnits;
+    const nightKwTotal=nm.kw*nightUnits;
     const nightDT=nightLoad==="hotwater"?20:nightLoad==="heating"?15:25;
     const nightHptTank=1.163*nightDT;
     const nightProduction=nightKwTotal*nOpH;
     const sufficient=nightProduction>=dailyTotal;
     const shortage=Math.max(0,dailyTotal-nightProduction);
     const nightTank=(sufficient?dailyTotal:nightProduction)/(nightHptTank>0?nightHptTank:1)*1.1;
-    nightR={nm,nightUnits,nightKwTotal,nOpH,nContract,dailyTotal,nightProduction,sufficient,shortage,nightTank,nightDT,nightHptTank};
+    nightR={nm,nightUnits,neededUnits,nightKwTotal,nOpH,nContract,dailyTotal,nightProduction,sufficient,shortage,nightTank,nightDT,nightHptTank,contractOk,maxUnits,neededKw};
   }
 }
 
@@ -1250,8 +1253,9 @@ return(
 
     {elecType==="night"&&nightR&&(<div style={{...RBOX,border:`1px solid ${dark?"#1A7A7A":"#A0D4D4"}`,background:dark?"#1C1530":"#FAF5FF"}}>
       <div style={{fontSize:12.5,fontWeight:700,color:dark?"#7ABFBF":"#1A7A7A",marginBottom:9}}>⚡ 히트펌프 (심야전기)</div>
+      {!nightR.contractOk&&<div style={{padding:"7px 10px",background:dark?"#2A0A0A":"#FFF0F0",border:`1px solid ${C.err}`,borderRadius:6,fontSize:12,marginBottom:8,color:C.err,fontWeight:600}}>⚠️ 계약전력 부족 — 부하 기준 {nightR.neededUnits}대 필요(소비 {fmt(nightR.nm.maxPower*nightR.neededUnits,1)}kW), 계약전력 {nightR.nContract}kW로는 {nightR.maxUnits}대만 운전 가능</div>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-        <div style={{textAlign:"center",background:dark?"#2D1B4E":"#F0FAFA",border:`1px solid ${dark?"#1A7A7A":"#A0D4D4"}`,borderRadius:7,padding:"9px 5px"}}><div style={{fontSize:11,color:C.sub}}>심야 HP 구성</div><div style={{fontSize:20,fontWeight:800,color:dark?"#7ABFBF":"#1A7A7A"}}>{nightR.nightUnits}대</div><div style={{fontSize:11,color:C.sub}}>{nightR.nm.label} × {nightR.nightUnits} = {fmt(nightR.nightKwTotal,1)}kW</div><div style={{fontSize:10,color:C.sub}}>소비 {fmt(nightR.nm.maxPower*nightR.nightUnits,1)}kW / 계약 {nightR.nContract||"미입력"}kW</div></div>
+        <div style={{textAlign:"center",background:dark?"#2D1B4E":"#F0FAFA",border:`1px solid ${dark?"#1A7A7A":"#A0D4D4"}`,borderRadius:7,padding:"9px 5px"}}><div style={{fontSize:11,color:C.sub}}>심야 HP 구성</div><div style={{fontSize:20,fontWeight:800,color:dark?"#7ABFBF":"#1A7A7A"}}>{nightR.nightUnits}대</div><div style={{fontSize:11,color:C.sub}}>{nightR.nm.label} × {nightR.nightUnits} = {fmt(nightR.nightKwTotal,1)}kW</div><div style={{fontSize:10,color:C.sub}}>소비 {fmt(nightR.nm.maxPower*nightR.nightUnits,1)}kW / 계약 {nightR.nContract||"미입력"}kW</div><div style={{fontSize:10,color:C.sub}}>부하 기준 필요: {fmt(nightR.neededKw,1)}kW ({nightR.neededUnits}대)</div></div>
         <div style={{textAlign:"center",background:dark?"#2D1B4E":"#F0FAFA",border:`1px solid ${dark?"#1A7A7A":"#A0D4D4"}`,borderRadius:7,padding:"9px 5px"}}><div style={{fontSize:11,color:C.sub}}>심야 생산가능 ({nightR.nOpH}h)</div><div style={{fontSize:20,fontWeight:800,color:dark?"#7ABFBF":"#1A7A7A"}}>{fmt(nightR.nightProduction,1)}<span style={{fontSize:11}}> kWh</span></div></div>
       </div>
       <div style={{padding:"7px 10px",background:nightR.sufficient?(dark?"#0A2A1A":"#E8F8EE"):(dark?"#2A0A0A":"#FFF0F0"),border:`1px solid ${nightR.sufficient?C.res:C.err}`,borderRadius:6,fontSize:12.5,marginBottom:8}}>
