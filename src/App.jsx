@@ -3,7 +3,7 @@ import { supabase } from "./supabase";
 
 
 // ═══════════════════════ 버전 ═══════════════════════
-const APP_VERSION = "v1.4";
+const APP_VERSION = "v1.41";
 const APP_DATE = "2026.03.21";
 
 // ═══════════════════════ 상수 ═══════════════════════
@@ -60,12 +60,12 @@ const HP_MAKERS = [
 const HP_MODELS = [
 { id:"lg9",    maker:"lg",   label:"9kW",    kw:9,    cop:3.59, maxPower:4.6,  phase:"single" },
 { id:"lg12",   maker:"lg",   label:"12kW",   kw:12,   cop:3.93, maxPower:6.6,  phase:"single" },
-{ id:"lg16",   maker:"lg",   label:"16kW",   kw:16,   cop:3.72, maxPower:6.93  },
-{ id:"lg25",   maker:"lg",   label:"25kW",   kw:25,   cop:2.53, maxPower:13.1  },
-{ id:"lg35",   maker:"lg",   label:"35kW",   kw:35,   cop:2.40, maxPower:21    },
-{ id:"ot16",   maker:"otec", label:"16.5kW", kw:16.5, cop:2.97, maxPower:9     },
-{ id:"ot25",   maker:"otec", label:"25kW",   kw:25,   cop:2.40, maxPower:14.5  },
-{ id:"ot35",   maker:"otec", label:"35kW",   kw:35,   cop:2.40, maxPower:21    },
+{ id:"lg16",   maker:"lg",   label:"16kW",   kw:16,   cop:3.72, maxPower:6.93, phase:"single" },
+{ id:"lg25",   maker:"lg",   label:"25kW",   kw:25,   cop:2.53, maxPower:13.1, phase:"three"  },
+{ id:"lg35",   maker:"lg",   label:"35kW",   kw:35,   cop:2.40, maxPower:21,   phase:"three"  },
+{ id:"ot16",   maker:"otec", label:"16.5kW", kw:16.5, cop:2.97, maxPower:9,    phase:"single" },
+{ id:"ot25",   maker:"otec", label:"25kW",   kw:25,   cop:2.40, maxPower:14.5, phase:"three"  },
+{ id:"ot35",   maker:"otec", label:"35kW",   kw:35,   cop:2.40, maxPower:21,   phase:"three"  },
 ];
 
 const COP_WEIGHTS = [
@@ -204,7 +204,7 @@ const[members,setMembers]=useState([]);
 const[projects,setProjects]=useState([]);
 const[activePid,setActivePid]=useState(null);
 
-const EMPTY_FORM={name:"",status:"active",sido:"",sigungu:"",manager:"",distributor:"",installer:"",memo:""};
+const EMPTY_FORM={name:"",status:"active",sido:"",sigungu:"",manager:"",distributor:"",installer:"",memo:"",phaseType:""};
 const[spForm,setSpForm]=useState(EMPTY_FORM);
 const[spEditId,setSpEditId]=useState(null);
 const[spFilter,setSpFilter]=useState("all");
@@ -776,8 +776,8 @@ const loadSample=async()=>{
 const C=dark?{bg:"#0A1510",card:"#132A1E",bd:"#1D4030",txt:"#E8F0E8",sub:"#8FA88F",pri:"#5CB88A",acc:"#4DA87A",res:"#34D399",warn:"#FBBF24",err:"#F87171",inp:"#0A1510",inpB:"#2A4A3A",hi:"#1A3A2A"}
 :{bg:"#F2F7F4",card:"#FFFFFF",bd:"#C8D8CC",txt:"#1A1A1A",sub:"#5A6B5E",pri:"#0F4A30",acc:"#2E7A4A",res:"#006600",warn:"#D4920A",err:"#C00000",inp:"#F8FBF8",inpB:"#B0C8B4",hi:"#E8F2EC"};
 const W={fontFamily:"'Pretendard','맑은 고딕',sans-serif",background:C.bg,minHeight:"100vh",paddingBottom:60};
-const HDR={background:dark?"#0D1F15":"#0F4A30",color:"#fff",padding:"10px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 8px rgba(0,0,0,.3)"};
-const TABS={display:"flex",background:C.card,borderBottom:`1px solid ${C.bd}`,padding:"0 14px",gap:2,overflowX:"auto",position:"sticky",top:42,zIndex:99,boxShadow:"0 1px 4px rgba(0,0,0,.08)"};
+const HDR={background:dark?"#0D1F15":"#0F4A30",color:"#fff",padding:"10px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 8px rgba(0,0,0,.3)",height:42,boxSizing:"border-box"};
+const TABS={display:"flex",background:C.card,borderBottom:`1px solid ${C.bd}`,padding:"0 14px",gap:2,overflowX:"auto",position:"sticky",top:42,zIndex:99,boxShadow:"0 1px 4px rgba(0,0,0,.08)",height:44,boxSizing:"border-box",alignItems:"stretch"};
 const tb=a=>({padding:"11px 16px",fontSize:13.5,fontWeight:a?700:500,color:a?C.acc:C.sub,background:"none",border:"none",borderBottom:a?`2.5px solid ${C.acc}`:`2.5px solid transparent`,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"});
 const CONT={maxWidth:760,margin:"0 auto",padding:"14px 12px",width:"100%",boxSizing:"border-box"};
 const SEC={background:C.card,borderRadius:10,padding:"16px 18px",marginBottom:12,border:`1px solid ${C.bd}`};
@@ -939,7 +939,7 @@ return(
     </div>
     <div style={CONT}>
 {/* 공통 저장 바 */}
-{tab!=="status"&&activePid&&(<div style={{background:C.card,border:`1px solid ${C.bd}`,borderRadius:8,padding:"8px 14px",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:87,zIndex:48,boxShadow:"0 1px 4px rgba(0,0,0,.1)"}}>
+{tab!=="status"&&activePid&&(<div style={{background:C.card,border:`1px solid ${C.bd}`,borderRadius:8,padding:"8px 14px",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:86,zIndex:48,boxShadow:"0 1px 4px rgba(0,0,0,.1)"}}>
   <span style={{fontSize:12.5,color:C.res,fontWeight:600}}>📂 {activeProj?.name}</span>
   <button onClick={saveCalc} style={{...BTN,background:C.acc,color:"#fff",padding:"6px 14px",fontSize:12.5}}>💾 저장</button>
 </div>)}
@@ -952,6 +952,7 @@ return(
     <div style={ROW}><span style={LBL}>진행상황</span><div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{STATUS_LIST.map(s=>(<button key={s.id} onClick={()=>setSpForm({...spForm,status:s.id})} style={{...BTN,padding:"5px 11px",fontSize:12,background:spForm.status===s.id?s.color:"transparent",color:spForm.status===s.id?"#fff":s.color,border:`1.5px solid ${s.color}`}}>{s.label}</button>))}</div></div>
     <div style={ROW}><span style={LBL}>시도</span><select value={spForm.sido} onChange={e=>setSpForm({...spForm,sido:e.target.value,sigungu:""})} style={{...SEL,width:120}}><option value="">선택</option>{Object.keys(SIDO_GU).map(s=><option key={s} value={s}>{s}</option>)}</select><span style={{fontSize:13,color:C.sub}}>시군구</span>{spForm.sido?(<select value={spForm.sigungu} onChange={e=>setSpForm({...spForm,sigungu:e.target.value})} style={{...SEL,width:130}}><option value="">선택</option>{(SIDO_GU[spForm.sido]||[]).map(s=><option key={s} value={s}>{s}</option>)}</select>):(<input value={spForm.sigungu} onChange={e=>setSpForm({...spForm,sigungu:e.target.value})} placeholder="직접입력" style={{...IST,width:120}}/>)}</div>
     <div style={ROW}><span style={LBL}>유통사</span><input value={spForm.distributor} onChange={e=>setSpForm({...spForm,distributor:e.target.value})} placeholder="(주)OO유통" style={{...IST,width:140}}/><span style={LBL}>설치업체</span><input value={spForm.installer} onChange={e=>setSpForm({...spForm,installer:e.target.value})} placeholder="OO설비" style={{...IST,width:140}}/></div>
+    <div style={ROW}><span style={LBL}>현장 전원</span><div style={{display:"flex",gap:5}}>{[["","미확인"],["single","단상"],["three","3상"]].map(([id,lbl])=>(<button key={id} onClick={()=>setSpForm({...spForm,phaseType:id})} style={{...BTN,padding:"5px 12px",fontSize:12,background:spForm.phaseType===id?C.acc:"transparent",color:spForm.phaseType===id?"#fff":C.sub,border:`1.5px solid ${spForm.phaseType===id?C.acc:C.bd}`}}>{lbl}</button>))}</div></div>
     <div style={ROW}><span style={LBL}>메모</span><input value={spForm.memo} onChange={e=>setSpForm({...spForm,memo:e.target.value})} placeholder="규모·특이사항" style={{...IST,width:300}}/></div>
     <div style={{display:"flex",gap:8,marginTop:6}}>
       <button onClick={saveSpProj} style={{...BTN,background:C.acc,color:"#fff",padding:"9px 20px"}}>{spEditId?"✅ 수정완료":"➕ 추가"}</button>
@@ -981,6 +982,7 @@ return(
           <div style={{fontSize:12,color:C.sub,marginTop:2}}>
             {p.manager&&<span>{p.manager} · </span>}
             {(p.sido||p.sigungu)&&<span>{[p.sido,p.sigungu].filter(Boolean).join(" ")} · </span>}
+            {p.phaseType&&<span style={{color:p.phaseType==="single"?"#D97706":"#2563EB",fontWeight:600}}>{p.phaseType==="single"?"단상":"3상"} · </span>}
             {p.memo&&<span>{p.memo}</span>}
           </div>
           <div style={{fontSize:11,color:C.sub,marginTop:2,display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -990,7 +992,7 @@ return(
           </div>
         </div>
         <button onClick={()=>openCalc(p)} style={{...BTN,padding:"5px 11px",fontSize:12,background:C.acc,color:"#fff",flexShrink:0}}>📐 용량산정</button>
-        <button onClick={()=>{setSpEditId(p.id);setSpForm({name:p.name,status:p.status,sido:p.sido||"",sigungu:p.sigungu||"",manager:p.manager||"",distributor:p.distributor||"",installer:p.installer||"",memo:p.memo||""});window.scrollTo(0,0);}} style={{...BTN,padding:"5px 9px",fontSize:12,background:C.hi,color:C.acc,border:`1px solid ${C.acc}`,flexShrink:0}}>수정</button>
+        <button onClick={()=>{setSpEditId(p.id);setSpForm({name:p.name,status:p.status,sido:p.sido||"",sigungu:p.sigungu||"",manager:p.manager||"",distributor:p.distributor||"",installer:p.installer||"",memo:p.memo||"",phaseType:p.phaseType||""});window.scrollTo(0,0);}} style={{...BTN,padding:"5px 9px",fontSize:12,background:C.hi,color:C.acc,border:`1px solid ${C.acc}`,flexShrink:0}}>수정</button>
         <button onClick={()=>deleteProj(p.id)} style={{...BTN,padding:"5px 9px",fontSize:12,background:"#FFF5F5",color:C.err,border:"1px solid #FCA5A5",flexShrink:0}}>삭제</button>
       </div>
     ))}
@@ -1078,7 +1080,7 @@ return(
           {HP_MAKERS.map(m=>(<button key={m.id} onClick={()=>{if(!m.available)return;setMakerId(m.id);}} style={{...BTN,padding:"5px 11px",fontSize:12.5,background:makerId===m.id?C.acc:"transparent",color:m.available?(makerId===m.id?"#fff":C.sub):"#CBD5E0",border:`1.5px solid ${makerId===m.id?C.acc:C.bd}`,cursor:m.available?"pointer":"not-allowed"}}>{m.label}{!m.available&&<span style={{fontSize:10,display:"block",opacity:.7}}>{m.note}</span>}</button>))}
         </div>
       </div>
-      {hpModelLargest&&<div style={{fontSize:12,color:C.sub,marginBottom:6}}>사용 모델: {hpModelLargest.label}{hpModelLargest.phase==="single"?" [단상]":""} (COP {hpModelLargest.cop} / 최대소비 {hpModelLargest.maxPower}kW) — 필요 용량에 따라 대수 자동 산출</div>}
+      {hpModelLargest&&<div style={{fontSize:12,color:C.sub,marginBottom:6}}>사용 모델: {hpModelLargest.label} [{hpModelLargest.phase==="single"?"단상":"3상"}] (COP {hpModelLargest.cop} / 최대소비 {hpModelLargest.maxPower}kW) — 필요 용량에 따라 대수 자동 산출</div>}
       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8}}>
         <span style={{fontSize:12,color:C.sub}}>COP 가중치:</span>
         <select value={copWeight} onChange={e=>setCopWeight(e.target.value)} style={{...SEL,width:160}}>{COP_WEIGHTS.map(w=>(<option key={w.v} value={w.v}>{w.label}</option>))}</select>
@@ -1117,7 +1119,7 @@ return(
         {HP_MAKERS.filter(m=>m.available).map(m=>(<button key={m.id} onClick={()=>{setNightMakerId(m.id);const first=HP_MODELS.find(x=>x.maker===m.id);if(first)setNightModelId(first.id);}} style={{...BTN,padding:"4px 10px",fontSize:12,background:nightMakerId===m.id?(dark?"#1A7A7A":"#1A7A7A"):"transparent",color:nightMakerId===m.id?"#fff":(dark?"#7ABFBF":"#1A7A7A"),border:`1px solid ${dark?"#1A7A7A":"#A0D4D4"}`}}>{m.label}</button>))}
       </div>
       <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-        {nightAvailableModels.map(m=>{const contract=parseFloat(nightContract)||0;const ok=contract===0||m.maxPower<=contract;return(<button key={m.id} onClick={()=>{if(!ok)return;setNightModelId(m.id);}} style={{...BTN,padding:"4px 10px",fontSize:12,background:nightModelId===m.id?(dark?"#1A7A7A":"#1A7A7A"):"transparent",color:nightModelId===m.id?"#fff":ok?(dark?"#7ABFBF":"#1A7A7A"):"#CBD5E0",border:`1px solid ${dark?"#1A7A7A":"#A0D4D4"}`,cursor:ok?"pointer":"not-allowed"}}>{m.label}{m.phase==="single"?" [단상]":""}<span style={{fontSize:10,display:"block"}}>{m.kw}kW / {m.maxPower}kW 소비{!ok&&" ❌"}</span></button>);})}
+        {nightAvailableModels.map(m=>{const contract=parseFloat(nightContract)||0;const ok=contract===0||m.maxPower<=contract;return(<button key={m.id} onClick={()=>{if(!ok)return;setNightModelId(m.id);}} style={{...BTN,padding:"4px 10px",fontSize:12,background:nightModelId===m.id?(dark?"#1A7A7A":"#1A7A7A"):"transparent",color:nightModelId===m.id?"#fff":ok?(dark?"#7ABFBF":"#1A7A7A"):"#CBD5E0",border:`1px solid ${dark?"#1A7A7A":"#A0D4D4"}`,cursor:ok?"pointer":"not-allowed"}}>{m.label} [{m.phase==="single"?"단상":"3상"}]<span style={{fontSize:10,display:"block"}}>{m.kw}kW / {m.maxPower}kW 소비{!ok&&" ❌"}</span></button>);})}
       </div>
     </div>)}
 
@@ -1250,7 +1252,7 @@ return(
           {hpManual.map(r=>(<div key={r.id} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
             <select value={r.modelId} onChange={e=>updateHpRow(r.id,"modelId",e.target.value)} style={{...INP,width:145,cursor:"pointer"}}>
               <option value="">모델 선택</option>
-              {HP_MODELS.filter(m=>m.maker===makerId).map(m=><option key={m.id} value={m.id}>{m.label} (COP {m.cop}){m.phase==="single"?" [단상]":""}</option>)}
+              {HP_MODELS.filter(m=>m.maker===makerId).map(m=><option key={m.id} value={m.id}>{m.label} [{m.phase==="single"?"단상":"3상"}] (COP {m.cop})</option>)}
             </select>
             <NI v={r.units} s={v=>updateHpRow(r.id,"units",v)} ph="1" st={{...INP,width:50}} sfx="대"/>
             <button onClick={()=>removeHpRow(r.id)} style={{...BTN,padding:"3px 7px",fontSize:11,background:"#FFF5F5",color:C.err,border:"1px solid #FCA5A5"}}>✕</button>
@@ -1261,6 +1263,7 @@ return(
           </div>
           {hpRec.isManual&&hpRec.totalKw<hpR.needed*0.95&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#2A0A0A":"#FFF0F0",border:`1px solid ${C.err}`,borderRadius:5,fontSize:12,color:C.err}}>⚠️ HP 용량 부족 — 수동 구성 {fmt(hpRec.totalKw,1)}kW {"<"} 필요 {fmt(hpR.needed,1)}kW. {fmt(hpR.needed-hpRec.totalKw,1)}kW 추가가 필요합니다.</div>}
           {hpRec.overTen&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#2A0A0A":"#FFF0F0",border:`1px solid ${C.err}`,borderRadius:5,fontSize:12,color:C.err}}>⚠️ {hpRec.totalUnits}대 — 대규모 현장입니다. 별도 설계 검토를 권장합니다.</div>}
+          {(()=>{const projPhase=activeProj?.phaseType;if(!projPhase||projPhase!=="single")return null;const hasThree=hpRec.rows.some(r=>r.model.phase==="three");if(!hasThree)return null;return(<div style={{marginTop:6,padding:"7px 10px",background:dark?"#2A1F0A":"#FFF8E8",border:`1px solid ${C.warn}`,borderRadius:5,fontSize:12,color:C.warn,lineHeight:1.6}}>⚡ 현장이 <b>단상</b>으로 등록되어 있으나, 선택된 모델 중 <b>3상 전원이 필요한 모델</b>이 포함되어 있습니다. 설치를 위해 <b>3상 인입 전기공사</b>가 필요합니다.</div>);})()}
           {hpR.needed>0&&hpR.needed<5&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#2A1F0A":"#FFF8E8",border:`1px solid ${C.warn}`,borderRadius:5,fontSize:12,color:C.warn}}>💡 필요 용량 {fmt(hpR.needed,1)}kW — HP 도입보다 가정용 전기온수기가 더 경제적일 수 있습니다.</div>}
           {!hpRec.isManual&&hpRec.totalUnits===1&&hpR.needed>=5&&hpRec.totalKw>hpR.needed*1.5&&<div style={{marginTop:6,padding:"5px 8px",background:dark?"#1A3A2A":"#E8F2EC",border:`1px solid ${C.acc}`,borderRadius:5,fontSize:12,color:C.acc}}>ℹ️ 최소 모델이 필요 용량({fmt(hpR.needed,1)}kW)의 {fmt(hpRec.totalKw/hpR.needed*100,0)}% — 소형 현장에서는 여유 용량으로 안정 운전에 유리합니다.</div>}
         </div>)}
@@ -1318,6 +1321,7 @@ return(
         <div style={{textAlign:"center"}}><div style={{fontSize:11,color:C.sub}}>축열조 용량</div><div style={{fontSize:22,fontWeight:800,color:dark?"#7ABFBF":"#1A7A7A"}}>{fmt(nightR.nightTank,1)}<span style={{fontSize:12}}> 톤</span></div><div style={{fontSize:10,color:C.sub}}>ΔT {nightR.nightDT}℃ 기준</div></div>
         {!nightR.sufficient&&<div style={{textAlign:"center",background:dark?"#2A0A0A":"#FFF0F0",border:`1px solid ${C.err}`,borderRadius:7,padding:"9px 5px"}}><div style={{fontSize:11,color:C.sub}}>보조설비 필요 열량</div><div style={{fontSize:22,fontWeight:800,color:C.err}}>{fmt(nightR.shortage,1)}<span style={{fontSize:11}}> kWh/일</span></div></div>}
       </div>
+      {activeProj?.phaseType==="single"&&nightR.nm.phase==="three"&&(<div style={{marginTop:8,padding:"7px 10px",background:dark?"#2A1F0A":"#FFF8E8",border:`1px solid ${C.warn}`,borderRadius:5,fontSize:12,color:C.warn,lineHeight:1.6}}>⚡ 현장이 <b>단상</b>으로 등록되어 있으나, 선택된 심야 모델({nightR.nm.label})은 <b>3상 전원이 필요</b>합니다. 설치를 위해 <b>3상 인입 전기공사</b>가 필요합니다.</div>)}
     </div>)}
   </div>)}
 </>)}
